@@ -2,6 +2,7 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const session = require('express-session');
+const dayjs = require('dayjs');
 const env = require('./config/env');
 const { bootstrapData } = require('./services/bootstrap');
 
@@ -11,6 +12,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const importRoutes = require('./routes/importRoutes');
 const holidaysRoutes = require('./routes/holidaysRoutes');
 const downloadRoutes = require('./routes/downloadRoutes');
+const apiRoutes = require('./routes/apiRoutes');
 const { requireAuth } = require('./middleware/auth');
 
 const app = express();
@@ -35,6 +37,17 @@ app.use(
 
 app.use((req, res, next) => {
   res.locals.user = req.session.user || null;
+  res.locals.formatDate = (value) => {
+    if (!value) {
+      return '';
+    }
+    // Extract YYYY-MM-DD without timezone conversion to avoid off-by-one
+    const dateStr = value instanceof Date
+      ? value.toISOString().slice(0, 10)
+      : String(value).slice(0, 10);
+    const parsed = dayjs(dateStr);
+    return parsed.isValid() ? parsed.format('DD-MM-YYYY') : String(value);
+  };
   next();
 });
 
@@ -44,13 +57,20 @@ app.use(attendanceRoutes);
 app.use(importRoutes);
 app.use(holidaysRoutes);
 app.use(downloadRoutes);
+app.use(apiRoutes);
 
 app.get('/', requireAuth, (req, res) => {
   res.render('dashboard');
 });
 
-app.use((err, _req, res, _next) => {
-  res.status(500).send(err.message);
+app.use((err, req, res, _next) => {
+  console.error('Request error:', err && (err.stack || err.message || err));
+
+  if (req.path.startsWith('/api/')) {
+    return res.status(500).json({ error: err.message || 'Error interno del servidor' });
+  }
+
+  return res.status(500).send(err.message || 'Error interno del servidor');
 });
 
 async function start() {

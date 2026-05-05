@@ -3,31 +3,51 @@ const dayjs = require('dayjs');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
 const { calculateWorkedMinutes, parseHm } = require('../services/time');
+const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
+const MANUAL_CREATED_NOTE = 'Creado manualmente';
+const MANUAL_DELETED_NOTE = 'Eliminado manualmente';
 
-function buildThreeSlots(existingSlots = []) {
-  const byIndex = new Map(existingSlots.map((slot) => [Number(slot.slotIndex), slot]));
-  const slots = [];
+// Sanitize a param that may arrive as array or comma-separated string; always return first value
+function firstParam(value) {
+  if (Array.isArray(value)) return value[0] || '';
+  if (typeof value === 'string' && value.includes(',')) return value.split(',')[0];
+  return value || '';
+}
 
+function hasAnySlotEntry(slot) {
+  if (slot.isDeleted) {
+    return false;
+  }
+
+  return Boolean(
+    slot.currentStartTime ||
+    slot.currentEndTime ||
+    slot.originalStartTime ||
+    slot.originalEndTime ||
+    slot.isManuallyCreated
+  );
+}
+
+function normalizeDaySlots(existingSlots = []) {
+  const sortedSlots = existingSlots
+    .map((slot) => ({ ...slot, slotIndex: Number(slot.slotIndex) }))
+    .sort((a, b) => a.slotIndex - b.slotIndex);
+
+  const activeSlots = sortedSlots.filter((slot) => !slot.isDeleted);
+
+  const visibleSlots = activeSlots.filter(hasAnySlotEntry);
+  const used = new Set(activeSlots.map((slot) => slot.slotIndex));
+
+  const missingSlotIndices = [];
   for (let i = 1; i <= 3; i += 1) {
-    const current = byIndex.get(i);
-    if (current) {
-      slots.push(current);
-    } else {
-      slots.push({
-        slotId: null,
-        slotIndex: i,
-        originalStartTime: null,
-        originalEndTime: null,
-        currentStartTime: null,
-        currentEndTime: null,
-        sourceNote: null
-      });
+    if (!used.has(i)) {
+      missingSlotIndices.push(i);
     }
   }
 
-  return slots;
+  return { visibleSlots, missingSlotIndices };
 }
 
 function buildMonthDays(yearMonth) {
@@ -40,10 +60,12 @@ function buildMonthDays(yearMonth) {
   return result;
 }
 
-router.get('/attendance', requireAuth, async (req, res) => {
-  const yearMonth = req.query.month || dayjs().format('YYYY-MM');
+router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
+  const rawMonth = Array.isArray(req.query.month) ? req.query.month[0] : req.query.month;
+  const rawEmployeeId = Array.isArray(req.query.employeeId) ? req.query.employeeId[0] : req.query.employeeId;
+  const yearMonth = rawMonth || dayjs().format('YYYY-MM');
   const employeeId = req.session.user.isAdmin
-    ? Number(req.query.employeeId || 0)
+    ? Number(rawEmployeeId || 0)
     : Number(req.session.user.employeeId);
 
   if (!employeeId) {
@@ -141,14 +163,18 @@ router.get('/attendance', requireAuth, async (req, res) => {
         originalEndTime: row.original_end_time,
         currentStartTime: row.current_start_time,
         currentEndTime: row.current_end_time,
-        sourceNote: row.source_note
+        sourceNote: row.source_note,
+        isManuallyCreated: row.source_note === MANUAL_CREATED_NOTE,
+        isDeleted: row.source_note === MANUAL_DELETED_NOTE
       });
     }
   }
 
   let totalWorkedMinutes = 0;
   const days = Array.from(dayMap.values()).map((day) => {
-    day.slots = buildThreeSlots(day.slots);
+    const normalized = normalizeDaySlots(day.slots);
+    day.visibleSlots = normalized.visibleSlots;
+    day.missingSlotIndices = normalized.missingSlotIndices;
     day.workedMinutes = calculateWorkedMinutes(day.slots);
     totalWorkedMinutes += day.workedMinutes;
     return day;
@@ -175,15 +201,17 @@ router.get('/attendance', requireAuth, async (req, res) => {
       balanceMinutes
     }
   });
-});
+}));
 
-router.post('/attendance/slot/:slotId', requireAuth, async (req, res) => {
+router.post('/attendance/slot/:slotId', requireAuth, asyncHandler(async (req, res) => {
   const slotId = Number(req.params.slotId);
-  const { currentStartTime, currentEndTime, month, employeeId } = req.body;
+  const { currentStartTime, currentEndTime } = req.body;
+  const month = firstParam(req.body.month);
+  const employeeId = firstParam(req.body.employeeId);
 
   const slotRows = await query(
     `
-    SELECT s.slot_id, s.current_start_time, s.current_end_time, d.employee_id
+    SELECT s.slot_id, s.current_start_time, s.current_end_time, s.original_start_time, s.original_end_time, s.source_note, d.employee_id
     FROM attendance_slots s
     INNER JOIN attendance_days d ON d.day_id = s.day_id
     WHERE s.slot_id = @slotId
@@ -225,11 +253,18 @@ router.post('/attendance/slot/:slotId', requireAuth, async (req, res) => {
     UPDATE attendance_slots
     SET current_start_time = @newStart,
         current_end_time = @newEnd,
+        source_note = @sourceNote,
         updated_at = SYSUTCDATETIME(),
         updated_by = @updatedBy
     WHERE slot_id = @slotId
     `,
-    { newStart, newEnd, updatedBy: req.session.user.id, slotId }
+    {
+      newStart,
+      newEnd,
+      sourceNote: slot.source_note === MANUAL_DELETED_NOTE ? MANUAL_CREATED_NOTE : slot.source_note,
+      updatedBy: req.session.user.id,
+      slotId
+    }
   );
 
   await query(
@@ -251,12 +286,14 @@ router.post('/attendance/slot/:slotId', requireAuth, async (req, res) => {
   );
 
   return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Registro+actualizado`);
-});
+}));
 
-router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, async (req, res) => {
+router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, asyncHandler(async (req, res) => {
   const dayId = Number(req.params.dayId);
   const slotIndex = Number(req.params.slotIndex);
-  const { currentStartTime, currentEndTime, month, employeeId } = req.body;
+  const { currentStartTime, currentEndTime } = req.body;
+  const month = firstParam(req.body.month);
+  const employeeId = firstParam(req.body.employeeId);
 
   if (!dayId || slotIndex < 1 || slotIndex > 3) {
     return res.status(400).send('Parametros invalidos');
@@ -300,9 +337,13 @@ router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, async (req, r
   const newStart = parsedStart ? parsedStart.text : null;
   const newEnd = parsedEnd ? parsedEnd.text : null;
 
+  if (!newStart && !newEnd) {
+    return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Debe+ingresar+entrada+o+salida`);
+  }
+
   const existingRows = await query(
     `
-    SELECT slot_id, current_start_time, current_end_time
+    SELECT slot_id, current_start_time, current_end_time, source_note
     FROM attendance_slots
     WHERE day_id = @dayId AND slot_index = @slotIndex
     `,
@@ -323,11 +364,18 @@ router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, async (req, r
       UPDATE attendance_slots
       SET current_start_time = @newStart,
           current_end_time = @newEnd,
+          source_note = @sourceNote,
           updated_at = SYSUTCDATETIME(),
           updated_by = @updatedBy
       WHERE slot_id = @slotId
       `,
-      { newStart, newEnd, updatedBy: req.session.user.id, slotId }
+      {
+        newStart,
+        newEnd,
+        sourceNote: existingRows[0].source_note === MANUAL_DELETED_NOTE ? MANUAL_CREATED_NOTE : existingRows[0].source_note,
+        updatedBy: req.session.user.id,
+        slotId
+      }
     );
   } else {
     const inserted = await query(
@@ -336,9 +384,9 @@ router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, async (req, r
         (day_id, slot_index, original_start_time, original_end_time, current_start_time, current_end_time, source_note, updated_by, updated_at)
       OUTPUT INSERTED.slot_id
       VALUES
-        (@dayId, @slotIndex, NULL, NULL, @newStart, @newEnd, 'Creado manualmente', @updatedBy, SYSUTCDATETIME())
+        (@dayId, @slotIndex, NULL, NULL, @newStart, @newEnd, @sourceNote, @updatedBy, SYSUTCDATETIME())
       `,
-      { dayId, slotIndex, newStart, newEnd, updatedBy: req.session.user.id }
+      { dayId, slotIndex, newStart, newEnd, sourceNote: MANUAL_CREATED_NOTE, updatedBy: req.session.user.id }
     );
     slotId = inserted[0].slot_id;
   }
@@ -362,6 +410,95 @@ router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, async (req, r
   );
 
   return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Registro+actualizado`);
-});
+}));
+
+router.post('/attendance/slot/:slotId/delete', requireAuth, asyncHandler(async (req, res) => {
+  const slotId = Number(req.params.slotId);
+  const month = firstParam(req.body.month);
+  const employeeId = firstParam(req.body.employeeId);
+
+  const slotRows = await query(
+    `
+    SELECT s.slot_id, s.current_start_time, s.current_end_time, s.original_start_time, s.original_end_time, s.source_note, d.employee_id
+    FROM attendance_slots s
+    INNER JOIN attendance_days d ON d.day_id = s.day_id
+    WHERE s.slot_id = @slotId
+    `,
+    { slotId }
+  );
+
+  if (slotRows.length === 0) {
+    return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Slot+no+encontrado`);
+  }
+
+  const slot = slotRows[0];
+  if (!canAccessEmployee(req, slot.employee_id)) {
+    return res.status(403).send('No autorizado');
+  }
+
+  if (slot.original_start_time || slot.original_end_time) {
+    await query(
+      `
+      UPDATE attendance_slots
+      SET current_start_time = NULL,
+          current_end_time = NULL,
+          source_note = @sourceNote,
+          updated_at = SYSUTCDATETIME(),
+          updated_by = @updatedBy
+      WHERE slot_id = @slotId
+      `,
+      { sourceNote: MANUAL_DELETED_NOTE, updatedBy: req.session.user.id, slotId }
+    );
+
+    await query(
+      `
+      INSERT INTO attendance_slot_audit
+      (slot_id, changed_by, old_start_time, old_end_time, new_start_time, new_end_time, comment)
+      VALUES
+      (@slotId, @changedBy, @oldStart, @oldEnd, NULL, NULL, @comment)
+      `,
+      {
+        slotId,
+        changedBy: req.session.user.id,
+        oldStart: slot.current_start_time,
+        oldEnd: slot.current_end_time,
+        comment: 'Limpieza de slot importado'
+      }
+    );
+
+    return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Slot+limpiado`);
+  }
+
+  await query(
+    `
+    UPDATE attendance_slots
+    SET current_start_time = NULL,
+        current_end_time = NULL,
+        source_note = @sourceNote,
+        updated_at = SYSUTCDATETIME(),
+        updated_by = @updatedBy
+    WHERE slot_id = @slotId
+    `,
+    { sourceNote: MANUAL_DELETED_NOTE, updatedBy: req.session.user.id, slotId }
+  );
+
+  await query(
+    `
+    INSERT INTO attendance_slot_audit
+    (slot_id, changed_by, old_start_time, old_end_time, new_start_time, new_end_time, comment)
+    VALUES
+    (@slotId, @changedBy, @oldStart, @oldEnd, NULL, NULL, @comment)
+    `,
+    {
+      slotId,
+      changedBy: req.session.user.id,
+      oldStart: slot.current_start_time,
+      oldEnd: slot.current_end_time,
+      comment: 'Eliminacion de slot manual'
+    }
+  );
+
+  return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Slot+eliminado`);
+}));
 
 module.exports = router;

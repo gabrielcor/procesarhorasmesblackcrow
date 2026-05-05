@@ -41,23 +41,75 @@
     <tbody>
       <% days.forEach((day) => { %>
         <tr>
-          <td><%= day.workDate %></td>
+          <td><%= formatDate(day.workDate) %></td>
           <td><%= day.isHoliday ? `Feriado (${day.holidayName})` : 'Normal' %></td>
           <td>
-            <% day.slots.forEach((slot) => { %>
-              <form method="post" action="<%= slot.slotId ? `/attendance/slot/${slot.slotId}` : `/attendance/day/${day.dayId}/slot/${slot.slotIndex}` %>" class="slot-form">
+            <% if ((!day.visibleSlots || day.visibleSlots.length === 0) && day.dayId && day.missingSlotIndices && day.missingSlotIndices.length > 0) { %>
+              <div class="empty-slot-actions">
+                <button
+                  type="button"
+                  class="add-slot-btn"
+                  data-target-class="day-<%= day.dayId %>-hidden-slot"
+                  aria-label="Agregar slot"
+                  title="Agregar slot"
+                >+</button>
+              </div>
+            <% } %>
+
+            <% (day.visibleSlots || []).forEach((slot, index) => { %>
+              <%
+                const saveFormId = `save-slot-${slot.slotId || ('day' + day.dayId + '-idx' + slot.slotIndex)}`;
+                const deleteFormId = `del-slot-${slot.slotId}`;
+              %>
+              <form id="<%= saveFormId %>" method="post" action="<%= slot.slotId ? `/attendance/slot/${slot.slotId}` : `/attendance/day/${day.dayId}/slot/${slot.slotIndex}` %>" class="slot-form">
                 <input type="hidden" name="month" value="<%= yearMonth %>" />
                 <input type="hidden" name="employeeId" value="<%= employeeId %>" />
                 <span>#<%= slot.slotIndex %></span>
                 <input name="currentStartTime" value="<%= slot.currentStartTime || '' %>" placeholder="HH:mm" />
                 <input name="currentEndTime" value="<%= slot.currentEndTime || '' %>" placeholder="HH:mm" />
-                <button type="submit">Guardar</button>
-                <small>
-                  Orig: <%= slot.originalStartTime || '--:--' %> - <%= slot.originalEndTime || '--:--' %>
-                  <%= slot.sourceNote ? `(${slot.sourceNote})` : '' %>
-                </small>
+                <div class="actions-row">
+                  <button type="submit">Guardar</button>
+                </div>
+                <div class="slot-meta">
+                  <small>
+                    Orig: <%= slot.originalStartTime || '--:--' %> - <%= slot.originalEndTime || '--:--' %>
+                    <%= slot.sourceNote ? `(${slot.sourceNote})` : '' %>
+                  </small>
+                  <button type="submit" form="<%= deleteFormId %>" class="remove-slot-btn" title="Eliminar slot">-</button>
+                  <% if (index === day.visibleSlots.length - 1 && day.dayId && day.missingSlotIndices && day.missingSlotIndices.length > 0) { %>
+                    <button
+                      type="button"
+                      class="add-slot-btn"
+                      data-target-class="day-<%= day.dayId %>-hidden-slot"
+                      aria-label="Agregar slot"
+                      title="Agregar slot"
+                    >+</button>
+                  <% } %>
+                </div>
               </form>
+              <% if (slot.slotId) { %>
+              <form id="<%= deleteFormId %>" method="post" action="/attendance/slot/<%= slot.slotId %>/delete" style="display:none">
+                <input type="hidden" name="month" value="<%= yearMonth %>" />
+                <input type="hidden" name="employeeId" value="<%= employeeId %>" />
+              </form>
+              <% } %>
             <% }) %>
+
+            <% if (day.dayId && day.missingSlotIndices && day.missingSlotIndices.length > 0) { %>
+              <% day.missingSlotIndices.forEach((slotIndex) => { %>
+                <form method="post" action="/attendance/day/<%= day.dayId %>/slot/<%= slotIndex %>" class="slot-form slot-form-hidden day-<%= day.dayId %>-hidden-slot">
+                  <input type="hidden" name="month" value="<%= yearMonth %>" />
+                  <input type="hidden" name="employeeId" value="<%= employeeId %>" />
+                  <span>#<%= slotIndex %></span>
+                  <input name="currentStartTime" value="" placeholder="HH:mm" />
+                  <input name="currentEndTime" value="" placeholder="HH:mm" />
+                  <button type="submit">Guardar</button>
+                  <div class="slot-meta">
+                    <small>Nuevo slot</small>
+                  </div>
+                </form>
+              <% }) %>
+            <% } %>
           </td>
           <td><%= day.workedMinutes %></td>
         </tr>
@@ -76,5 +128,26 @@
   <div>Saldo final: <strong class="<%= summary.balanceMinutes >= 0 ? 'positive' : 'negative' %>"><%= summary.balanceMinutes %></strong></div>
 </section>
 <% } %>
+
+<script>
+  document.querySelectorAll('.add-slot-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const className = button.getAttribute('data-target-class');
+      const hiddenForms = Array.from(document.querySelectorAll(`.${className}.slot-form-hidden`));
+      const nextHidden = hiddenForms.find((form) => form.style.display !== 'grid');
+
+      if (!nextHidden) {
+        button.style.display = 'none';
+        return;
+      }
+
+      nextHidden.style.display = 'grid';
+      const stillHidden = hiddenForms.some((form) => form.style.display !== 'grid');
+      if (!stillHidden) {
+        button.style.display = 'none';
+      }
+    });
+  });
+</script>
 
 <%- include('partials/footer') %>

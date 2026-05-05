@@ -11,9 +11,10 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 - Versionado de importaciones por empleado/mes (la ultima queda activa, las anteriores se conservan).
 - Visualizacion mensual con:
 	- Dia normal o feriado
-	- Hasta 6 slots (entrada/salida)
+	- Hasta 3 slots (6 marcas totales entrada/salida)
 	- Minutos trabajados por dia
 - Edicion de slots por admin o por el usuario del empleado.
+- En UI de asistencia: solo se muestran slots con al menos una marca; se puede agregar slot con boton + hasta 3 por dia.
 - Auditoria de cambios de slots (quien modifico, antes/despues).
 - Descarga del archivo original del mes activo.
 - Totales mensuales al pie:
@@ -75,6 +76,18 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 3. Configurar App Settings con variables del .env.
 4. Publicar el codigo (zip deploy o CI/CD).
 5. Verificar login admin y flujo de importacion.
+
+## Endpoints JSON (para frontend React o integraciones)
+
+- GET /api/attendance/monthly?month=YYYY-MM&employeeId=ID
+	- Usuario normal: ignora employeeId y devuelve su propio empleado.
+	- Admin: requiere employeeId.
+	- Devuelve dias del mes, slots existentes por dia, indices de slots disponibles y resumen mensual.
+
+- GET /api/audit/slots?month=YYYY-MM&employeeId=ID
+	- Usuario normal: ignora employeeId y devuelve su propio historial.
+	- Admin: requiere employeeId.
+	- Devuelve historial de cambios de slots del mes con usuario, fecha, valores antes/despues y comentario.
 
 ## Nota importante del entorno actual
 

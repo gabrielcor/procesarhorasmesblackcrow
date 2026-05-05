@@ -4,8 +4,8 @@
   <% if (message) { %><p class="info"><%= message %></p><% } %>
 
   <form method="get" action="/admin/holidays" class="form-inline">
-    <label>Mes</label>
-    <input type="month" name="month" value="<%= yearMonth %>" />
+    <label>Ano</label>
+    <input type="number" name="year" value="<%= year %>" min="2000" max="2100" />
     <button type="submit">Ver</button>
   </form>
 
@@ -30,10 +30,11 @@
     <tbody>
       <% holidays.forEach((h) => { %>
         <tr>
-          <td><%= h.holiday_date %></td>
+          <td><%= formatDate(h.holiday_date) %></td>
           <td><%= h.holiday_name %></td>
           <td>
             <form method="post" action="/admin/holidays/<%= h.holiday_id %>/delete">
+              <input type="hidden" name="year" value="<%= year %>" />
               <button type="submit">Eliminar</button>
             </form>
           </td>

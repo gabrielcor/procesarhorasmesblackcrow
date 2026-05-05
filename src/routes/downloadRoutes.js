@@ -2,10 +2,11 @@ const express = require('express');
 const path = require('path');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
+const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
 
-router.get('/download', requireAuth, async (req, res) => {
+router.get('/download', requireAuth, asyncHandler(async (req, res) => {
   const yearMonth = req.query.month;
   const employeeId = req.session.user.isAdmin ? Number(req.query.employeeId) : Number(req.session.user.employeeId);
 
@@ -36,6 +37,6 @@ router.get('/download', requireAuth, async (req, res) => {
   const file = batches[0];
   const absPath = path.resolve(file.stored_file_path);
   return res.download(absPath, file.original_file_name);
-});
+}));
 
 module.exports = router;

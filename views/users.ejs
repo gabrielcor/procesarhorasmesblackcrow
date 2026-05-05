@@ -34,16 +34,45 @@
         <th>Rol</th>
         <th>Empleado</th>
         <th>Activo</th>
+        <th>Acciones</th>
       </tr>
     </thead>
     <tbody>
       <% users.forEach((u) => { %>
         <tr>
-          <td><%= u.user_id %></td>
-          <td><%= u.username %></td>
-          <td><%= u.is_admin ? 'Admin' : 'Usuario' %></td>
-          <td><%= u.display_name || '-' %></td>
-          <td><%= u.is_active ? 'Si' : 'No' %></td>
+          <form method="post" action="/admin/users/<%= u.user_id %>/update">
+            <td><%= u.user_id %></td>
+            <td><input type="text" name="username" value="<%= u.username %>" required /></td>
+            <td>
+              <label class="inline-check"><input type="checkbox" name="isAdmin" <%= u.is_admin ? 'checked' : '' %> /> Admin</label>
+            </td>
+            <td>
+              <select name="employeeId">
+                <option value="">Sin empleado</option>
+                <% employees.forEach((employee) => { %>
+                  <option value="<%= employee.employee_id %>" <%= Number(u.employee_id) === Number(employee.employee_id) ? 'selected' : '' %>>#<%= employee.employee_number %> - <%= employee.display_name %></option>
+                <% }) %>
+              </select>
+            </td>
+            <td>
+              <label class="inline-check"><input type="checkbox" name="isActive" <%= u.is_active ? 'checked' : '' %> /> Activo</label>
+            </td>
+            <td>
+              <div class="actions-row">
+                <input type="password" name="password" placeholder="Nueva clave opcional" />
+                <button type="submit">Actualizar</button>
+                <% if (Number(u.user_id) !== Number(user.id)) { %>
+                  <button
+                    type="submit"
+                    class="danger-btn"
+                    formaction="/admin/users/<%= u.user_id %>/delete"
+                    formnovalidate
+                    onclick="return confirm('Eliminar usuario?');"
+                  >Eliminar</button>
+                <% } %>
+              </div>
+            </td>
+          </form>
         </tr>
       <% }) %>
     </tbody>

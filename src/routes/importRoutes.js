@@ -7,6 +7,7 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { parseAttendanceSheet } = require('../services/excelParser');
 const { getPool, sql } = require('../db');
 const { query } = require('../db');
+const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
 
@@ -22,15 +23,15 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.get('/import', requireAuth, requireAdmin, async (req, res) => {
+router.get('/import', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const employees = await query('SELECT employee_id, employee_number, display_name FROM employees ORDER BY employee_number');
   return res.render('upload', {
     employees,
     message: req.query.message || null
   });
-});
+}));
 
-router.post('/import', requireAuth, requireAdmin, upload.single('worksheet'), async (req, res) => {
+router.post('/import', requireAuth, requireAdmin, upload.single('worksheet'), asyncHandler(async (req, res) => {
   if (!req.file) {
     return res.redirect('/import?message=Debe+seleccionar+un+archivo');
   }
@@ -125,6 +126,6 @@ router.post('/import', requireAuth, requireAdmin, upload.single('worksheet'), as
     }
     return res.redirect(`/import?message=${encodeURIComponent(`Error al importar: ${error.message}`)}`);
   }
-});
+}));
 
 module.exports = router;
