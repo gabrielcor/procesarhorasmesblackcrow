@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+<section class="card">
+  <h1>Importar hoja mensual</h1>
+  <% if (message) { %><p class="info"><%= message %></p><% } %>
+  <form method="post" action="/import" enctype="multipart/form-data" class="form-grid">
+    <label>Empleado</label>
+    <select name="employeeId" required>
+      <option value="">Seleccione</option>
+      <% employees.forEach((employee) => { %>
+        <option value="<%= employee.employee_id %>">#<%= employee.employee_number %> - <%= employee.display_name %></option>
+      <% }) %>
+    </select>
+
+    <label>Archivo Excel (.xls/.xlsx)</label>
+    <input type="file" name="worksheet" accept=".xls,.xlsx" required />
+
+    <button type="submit">Importar</button>
+  </form>
+</section>
+<%- include('partials/footer') %>

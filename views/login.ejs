@@ -1,0 +1,15 @@
+<%- include('partials/header') %>
+<section class="card auth-card">
+  <h1>Ingresar</h1>
+  <% if (error) { %>
+    <p class="error"><%= error %></p>
+  <% } %>
+  <form method="post" action="/login" class="form-grid">
+    <label>Usuario</label>
+    <input type="text" name="username" required />
+    <label>Clave</label>
+    <input type="password" name="password" required />
+    <button type="submit">Entrar</button>
+  </form>
+</section>
+<%- include('partials/footer') %>

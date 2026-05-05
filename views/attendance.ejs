@@ -1,0 +1,83 @@
+<%- include('partials/header') %>
+<section class="card">
+  <h1>Asistencia mensual</h1>
+  <% if (message) { %><p class="info"><%= message %></p><% } %>
+
+  <form method="get" action="/attendance" class="form-inline">
+    <label>Mes</label>
+    <input type="month" name="month" value="<%= yearMonth %>" required />
+
+    <% if (isAdmin) { %>
+      <label>Empleado</label>
+      <select name="employeeId">
+        <option value="">Seleccione</option>
+        <% employees.forEach((e) => { %>
+          <option value="<%= e.employee_id %>" <%= Number(employeeId) === Number(e.employee_id) ? 'selected' : '' %>>#<%= e.employee_number %> - <%= e.display_name %></option>
+        <% }) %>
+      </select>
+    <% } %>
+
+    <button type="submit">Ver</button>
+  </form>
+
+  <% if (employeeId) { %>
+    <p>
+      <a href="/download?month=<%= yearMonth %>&employeeId=<%= employeeId %>">Descargar hoja del mes</a>
+    </p>
+  <% } %>
+</section>
+
+<% if (days && days.length > 0) { %>
+<section class="card">
+  <table class="attendance-table">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Tipo</th>
+        <th>Slots</th>
+        <th>Minutos dia</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% days.forEach((day) => { %>
+        <tr>
+          <td><%= day.workDate %></td>
+          <td><%= day.isHoliday ? `Feriado (${day.holidayName})` : 'Normal' %></td>
+          <td>
+            <% if (day.slots.length === 0) { %>
+              <span>-</span>
+            <% } %>
+            <% day.slots.forEach((slot) => { %>
+              <form method="post" action="/attendance/slot/<%= slot.slotId %>" class="slot-form">
+                <input type="hidden" name="month" value="<%= yearMonth %>" />
+                <input type="hidden" name="employeeId" value="<%= employeeId %>" />
+                <span>#<%= slot.slotIndex %></span>
+                <input name="currentStartTime" value="<%= slot.currentStartTime || '' %>" placeholder="HH:mm" />
+                <input name="currentEndTime" value="<%= slot.currentEndTime || '' %>" placeholder="HH:mm" />
+                <button type="submit">Guardar</button>
+                <small>
+                  Orig: <%= slot.originalStartTime || '--:--' %> - <%= slot.originalEndTime || '--:--' %>
+                  <%= slot.sourceNote ? `(${slot.sourceNote})` : '' %>
+                </small>
+              </form>
+            <% }) %>
+          </td>
+          <td><%= day.workedMinutes %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+<% } %>
+
+<% if (summary) { %>
+<section class="card summary-grid">
+  <div>Total minutos trabajados: <strong><%= summary.totalWorkedMinutes %></strong></div>
+  <div>Minutos requeridos: <strong><%= summary.requiredMinutes %></strong></div>
+  <div>Tolerancia mensual: <strong><%= summary.allowanceMinutes %></strong></div>
+  <div>Minutos requeridos luego de tolerancia: <strong><%= summary.requiredAfterAllowance %></strong></div>
+  <div>Saldo final: <strong class="<%= summary.balanceMinutes >= 0 ? 'positive' : 'negative' %>"><%= summary.balanceMinutes %></strong></div>
+</section>
+<% } %>
+
+<%- include('partials/footer') %>

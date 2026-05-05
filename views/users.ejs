@@ -1,0 +1,52 @@
+<%- include('partials/header') %>
+<section class="card">
+  <h1>Usuarios</h1>
+  <% if (message) { %><p class="info"><%= message %></p><% } %>
+
+  <h2>Crear usuario</h2>
+  <form method="post" action="/admin/users" class="form-grid">
+    <label>Usuario</label>
+    <input type="text" name="username" required />
+
+    <label>Clave</label>
+    <input type="password" name="password" required />
+
+    <label>Empleado</label>
+    <select name="employeeId">
+      <option value="">Sin empleado (solo admin)</option>
+      <% employees.forEach((employee) => { %>
+        <option value="<%= employee.employee_id %>">#<%= employee.employee_number %> - <%= employee.display_name %></option>
+      <% }) %>
+    </select>
+
+    <label class="inline-check"><input type="checkbox" name="isAdmin" /> Es administrador</label>
+    <button type="submit">Guardar</button>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Listado</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Usuario</th>
+        <th>Rol</th>
+        <th>Empleado</th>
+        <th>Activo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach((u) => { %>
+        <tr>
+          <td><%= u.user_id %></td>
+          <td><%= u.username %></td>
+          <td><%= u.is_admin ? 'Admin' : 'Usuario' %></td>
+          <td><%= u.display_name || '-' %></td>
+          <td><%= u.is_active ? 'Si' : 'No' %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+<%- include('partials/footer') %>
