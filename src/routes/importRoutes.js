@@ -92,7 +92,7 @@ router.post('/import', requireAuth, requireAdmin, upload.single('worksheet'), as
 
         const dayId = dayResult.recordset[0].day_id;
 
-        for (let i = 0; i < Math.min(day.slots.length, 6); i += 1) {
+        for (let i = 0; i < Math.min(day.slots.length, 3); i += 1) {
           const slot = day.slots[i];
           await new sql.Request(tx)
             .input('dayId', dayId)

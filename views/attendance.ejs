@@ -44,11 +44,8 @@
           <td><%= day.workDate %></td>
           <td><%= day.isHoliday ? `Feriado (${day.holidayName})` : 'Normal' %></td>
           <td>
-            <% if (day.slots.length === 0) { %>
-              <span>-</span>
-            <% } %>
             <% day.slots.forEach((slot) => { %>
-              <form method="post" action="/attendance/slot/<%= slot.slotId %>" class="slot-form">
+              <form method="post" action="<%= slot.slotId ? `/attendance/slot/${slot.slotId}` : `/attendance/day/${day.dayId}/slot/${slot.slotIndex}` %>" class="slot-form">
                 <input type="hidden" name="month" value="<%= yearMonth %>" />
                 <input type="hidden" name="employeeId" value="<%= employeeId %>" />
                 <span>#<%= slot.slotIndex %></span>

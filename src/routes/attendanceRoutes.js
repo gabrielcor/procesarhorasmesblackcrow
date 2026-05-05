@@ -6,6 +6,30 @@ const { calculateWorkedMinutes, parseHm } = require('../services/time');
 
 const router = express.Router();
 
+function buildThreeSlots(existingSlots = []) {
+  const byIndex = new Map(existingSlots.map((slot) => [Number(slot.slotIndex), slot]));
+  const slots = [];
+
+  for (let i = 1; i <= 3; i += 1) {
+    const current = byIndex.get(i);
+    if (current) {
+      slots.push(current);
+    } else {
+      slots.push({
+        slotId: null,
+        slotIndex: i,
+        originalStartTime: null,
+        originalEndTime: null,
+        currentStartTime: null,
+        currentEndTime: null,
+        sourceNote: null
+      });
+    }
+  }
+
+  return slots;
+}
+
 function buildMonthDays(yearMonth) {
   const start = dayjs(`${yearMonth}-01`);
   const end = start.endOf('month');
@@ -93,6 +117,7 @@ router.get('/attendance', requireAuth, async (req, res) => {
   const dayMap = new Map();
   buildMonthDays(yearMonth).forEach((date) => {
     dayMap.set(date, {
+      dayId: null,
       workDate: date,
       slots: [],
       isHoliday: holidayMap.has(date),
@@ -106,6 +131,7 @@ router.get('/attendance', requireAuth, async (req, res) => {
       continue;
     }
     const day = dayMap.get(row.work_date);
+    day.dayId = day.dayId || row.day_id;
 
     if (row.slot_id) {
       day.slots.push({
@@ -122,7 +148,7 @@ router.get('/attendance', requireAuth, async (req, res) => {
 
   let totalWorkedMinutes = 0;
   const days = Array.from(dayMap.values()).map((day) => {
-    day.slots.sort((a, b) => a.slotIndex - b.slotIndex);
+    day.slots = buildThreeSlots(day.slots);
     day.workedMinutes = calculateWorkedMinutes(day.slots);
     totalWorkedMinutes += day.workedMinutes;
     return day;
@@ -221,6 +247,117 @@ router.post('/attendance/slot/:slotId', requireAuth, async (req, res) => {
       newStart,
       newEnd,
       comment: 'Edicion manual'
+    }
+  );
+
+  return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Registro+actualizado`);
+});
+
+router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, async (req, res) => {
+  const dayId = Number(req.params.dayId);
+  const slotIndex = Number(req.params.slotIndex);
+  const { currentStartTime, currentEndTime, month, employeeId } = req.body;
+
+  if (!dayId || slotIndex < 1 || slotIndex > 3) {
+    return res.status(400).send('Parametros invalidos');
+  }
+
+  const dayRows = await query(
+    `
+    SELECT d.day_id, d.employee_id
+    FROM attendance_days d
+    WHERE d.day_id = @dayId
+    `,
+    { dayId }
+  );
+
+  if (dayRows.length === 0) {
+    return res.status(404).send('Dia no encontrado');
+  }
+
+  const day = dayRows[0];
+  if (!canAccessEmployee(req, day.employee_id)) {
+    return res.status(403).send('No autorizado');
+  }
+
+  const parsedStart = currentStartTime ? parseHm(currentStartTime) : null;
+  const parsedEnd = currentEndTime ? parseHm(currentEndTime) : null;
+
+  if (currentStartTime && !parsedStart) {
+    return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Hora+de+entrada+invalida`);
+  }
+  if (currentEndTime && !parsedEnd) {
+    return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Hora+de+salida+invalida`);
+  }
+  if (parsedStart && parsedEnd) {
+    const startMinutes = parsedStart.hours * 60 + parsedStart.minutes;
+    const endMinutes = parsedEnd.hours * 60 + parsedEnd.minutes;
+    if (endMinutes <= startMinutes) {
+      return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Salida+debe+ser+mayor+que+entrada`);
+    }
+  }
+
+  const newStart = parsedStart ? parsedStart.text : null;
+  const newEnd = parsedEnd ? parsedEnd.text : null;
+
+  const existingRows = await query(
+    `
+    SELECT slot_id, current_start_time, current_end_time
+    FROM attendance_slots
+    WHERE day_id = @dayId AND slot_index = @slotIndex
+    `,
+    { dayId, slotIndex }
+  );
+
+  let slotId;
+  let oldStart = null;
+  let oldEnd = null;
+
+  if (existingRows.length > 0) {
+    slotId = existingRows[0].slot_id;
+    oldStart = existingRows[0].current_start_time;
+    oldEnd = existingRows[0].current_end_time;
+
+    await query(
+      `
+      UPDATE attendance_slots
+      SET current_start_time = @newStart,
+          current_end_time = @newEnd,
+          updated_at = SYSUTCDATETIME(),
+          updated_by = @updatedBy
+      WHERE slot_id = @slotId
+      `,
+      { newStart, newEnd, updatedBy: req.session.user.id, slotId }
+    );
+  } else {
+    const inserted = await query(
+      `
+      INSERT INTO attendance_slots
+        (day_id, slot_index, original_start_time, original_end_time, current_start_time, current_end_time, source_note, updated_by, updated_at)
+      OUTPUT INSERTED.slot_id
+      VALUES
+        (@dayId, @slotIndex, NULL, NULL, @newStart, @newEnd, 'Creado manualmente', @updatedBy, SYSUTCDATETIME())
+      `,
+      { dayId, slotIndex, newStart, newEnd, updatedBy: req.session.user.id }
+    );
+    slotId = inserted[0].slot_id;
+  }
+
+  await query(
+    `
+    INSERT INTO attendance_slot_audit
+    (slot_id, changed_by, old_start_time, old_end_time, new_start_time, new_end_time, comment)
+    VALUES
+    (@slotId, @changedBy, @oldStart, @oldEnd, @newStart, @newEnd, @comment)
+    `,
+    {
+      slotId,
+      changedBy: req.session.user.id,
+      oldStart,
+      oldEnd,
+      newStart,
+      newEnd,
+      comment: existingRows.length > 0 ? 'Edicion manual' : 'Creacion manual de slot'
     }
   );
 

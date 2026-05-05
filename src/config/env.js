@@ -19,9 +19,9 @@ function parseAuthenticationType(connectionString = '') {
 }
 
 function parseConnectionStringValue(connectionString = '', keyPattern) {
-  const pattern = new RegExp(`${keyPattern}\\s*=\\s*"?([^;\"]+)"?`, 'i');
+  const pattern = new RegExp(`(?:${keyPattern})\\s*=\\s*"?([^;\"]+)"?`, 'i');
   const match = String(connectionString).match(pattern);
-  return match ? match[1].trim() : '';
+  return match && match[1] ? match[1].trim() : '';
 }
 
 function normalizeServer(serverValue = '') {

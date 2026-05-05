@@ -60,7 +60,7 @@ function pairDailyPunches(rawTimes) {
     });
   }
 
-  return slots.slice(0, 6);
+  return slots.slice(0, 3);
 }
 
 function calculateWorkedMinutes(slots) {

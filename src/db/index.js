@@ -4,13 +4,14 @@ const env = require('../config/env');
 let pool;
 
 function buildSqlConfig() {
+  const hasSqlCredentials = Boolean(env.sql.user && env.sql.password);
   const config = {
     server: env.sql.server,
     database: env.sql.database,
     options: env.sql.options
   };
 
-  if (env.sql.authenticationType === 'azure-active-directory-default') {
+  if (env.sql.authenticationType === 'azure-active-directory-default' && !hasSqlCredentials) {
     config.authentication = {
       type: 'azure-active-directory-default'
     };

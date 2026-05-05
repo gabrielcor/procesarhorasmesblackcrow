@@ -61,6 +61,7 @@ async function start() {
 }
 
 start().catch((error) => {
-  console.error('Error iniciando aplicacion:', error.message);
+  const details = error && (error.stack || error.message || JSON.stringify(error));
+  console.error('Error iniciando aplicacion:', details);
   process.exit(1);
 });
