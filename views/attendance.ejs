@@ -42,7 +42,35 @@
       <% days.forEach((day) => { %>
         <tr>
           <td><%= formatDate(day.workDate) %></td>
-          <td><%= day.isHoliday ? `Feriado (${day.holidayName})` : 'Normal' %></td>
+          <td>
+            <div class="day-type-labels">
+              <% if (day.isHoliday) { %>
+                <span class="day-chip holiday">Feriado (<%= day.holidayName %>)</span>
+              <% } %>
+              <% if (day.dayType === 'V') { %>
+                <span class="day-chip vacation">Vacaciones</span>
+              <% } else if (day.dayType === 'L') { %>
+                <span class="day-chip leave">Licencia</span>
+              <% } else if (!day.isHoliday) { %>
+                <span class="day-chip normal">Normal</span>
+              <% } %>
+            </div>
+            <% if (day.dayId) { %>
+              <form method="post" action="/attendance/day/<%= day.dayId %>/type" class="day-type-actions">
+                <input type="hidden" name="month" value="<%= yearMonth %>" />
+                <input type="hidden" name="employeeId" value="<%= employeeId %>" />
+                <% if (day.dayType !== 'V') { %>
+                  <button type="submit" name="dayType" value="V" class="type-btn">V</button>
+                <% } %>
+                <% if (day.dayType !== 'L') { %>
+                  <button type="submit" name="dayType" value="L" class="type-btn">L</button>
+                <% } %>
+                <% if (day.dayType !== 'N') { %>
+                  <button type="submit" name="dayType" value="N" class="type-btn neutral">N</button>
+                <% } %>
+              </form>
+            <% } %>
+          </td>
           <td>
             <% if ((!day.visibleSlots || day.visibleSlots.length === 0) && day.dayId && day.missingSlotIndices && day.missingSlotIndices.length > 0) { %>
               <div class="empty-slot-actions">

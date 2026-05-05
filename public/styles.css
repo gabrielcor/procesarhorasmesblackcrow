@@ -179,6 +179,62 @@ th {
   margin-bottom: 8px;
 }
 
+.day-type-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.day-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.day-chip.holiday {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.day-chip.vacation {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.day-chip.leave {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.day-chip.normal {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.day-type-actions {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.type-btn {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.type-btn.neutral {
+  background: #475569;
+}
+
 .muted {
   color: var(--muted);
 }

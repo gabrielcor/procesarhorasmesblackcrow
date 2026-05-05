@@ -8,12 +8,36 @@ const asyncHandler = require('../utils/asyncHandler');
 const router = express.Router();
 const MANUAL_CREATED_NOTE = 'Creado manualmente';
 const MANUAL_DELETED_NOTE = 'Eliminado manualmente';
+const DAY_TYPE_NORMAL = 'N';
+const DAY_TYPE_VACATION = 'V';
+const DAY_TYPE_LEAVE = 'L';
 
 // Sanitize a param that may arrive as array or comma-separated string; always return first value
 function firstParam(value) {
   if (Array.isArray(value)) return value[0] || '';
   if (typeof value === 'string' && value.includes(',')) return value.split(',')[0];
   return value || '';
+}
+
+function normalizeDayType(value) {
+  if (value === DAY_TYPE_VACATION || value === DAY_TYPE_LEAVE) {
+    return value;
+  }
+
+  return DAY_TYPE_NORMAL;
+}
+
+function calculateDayWorkedMinutes(day) {
+  if (day.dayType === DAY_TYPE_VACATION || day.dayType === DAY_TYPE_LEAVE) {
+    return 480;
+  }
+
+  const baseMinutes = calculateWorkedMinutes(day.slots);
+  if (day.isHoliday) {
+    return baseMinutes * 2;
+  }
+
+  return baseMinutes;
 }
 
 function hasAnySlotEntry(slot) {
@@ -108,6 +132,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
     SELECT
       d.day_id,
       CONVERT(varchar(10), d.work_date, 23) AS work_date,
+      d.day_type,
       s.slot_id,
       s.slot_index,
       s.original_start_time,
@@ -142,6 +167,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
       dayId: null,
       workDate: date,
       slots: [],
+      dayType: DAY_TYPE_NORMAL,
       isHoliday: holidayMap.has(date),
       holidayName: holidayMap.get(date) || null,
       workedMinutes: 0
@@ -154,6 +180,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
     }
     const day = dayMap.get(row.work_date);
     day.dayId = day.dayId || row.day_id;
+    day.dayType = normalizeDayType(row.day_type);
 
     if (row.slot_id) {
       day.slots.push({
@@ -175,7 +202,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
     const normalized = normalizeDaySlots(day.slots);
     day.visibleSlots = normalized.visibleSlots;
     day.missingSlotIndices = normalized.missingSlotIndices;
-    day.workedMinutes = calculateWorkedMinutes(day.slots);
+    day.workedMinutes = calculateDayWorkedMinutes(day);
     totalWorkedMinutes += day.workedMinutes;
     return day;
   });
@@ -410,6 +437,45 @@ router.post('/attendance/day/:dayId/slot/:slotIndex', requireAuth, asyncHandler(
   );
 
   return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Registro+actualizado`);
+}));
+
+router.post('/attendance/day/:dayId/type', requireAuth, asyncHandler(async (req, res) => {
+  const dayId = Number(req.params.dayId);
+  const month = firstParam(req.body.month);
+  const employeeId = firstParam(req.body.employeeId);
+  const dayType = normalizeDayType(firstParam(req.body.dayType));
+
+  if (!dayId) {
+    return res.status(400).send('Parametros invalidos');
+  }
+
+  const dayRows = await query(
+    `
+    SELECT day_id, employee_id
+    FROM attendance_days
+    WHERE day_id = @dayId
+    `,
+    { dayId }
+  );
+
+  if (dayRows.length === 0) {
+    return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Dia+no+encontrado`);
+  }
+
+  if (!canAccessEmployee(req, dayRows[0].employee_id)) {
+    return res.status(403).send('No autorizado');
+  }
+
+  await query(
+    `
+    UPDATE attendance_days
+    SET day_type = @dayType
+    WHERE day_id = @dayId
+    `,
+    { dayType, dayId }
+  );
+
+  return res.redirect(`/attendance?month=${month}&employeeId=${employeeId}&message=Tipo+de+dia+actualizado`);
 }));
 
 router.post('/attendance/slot/:slotId/delete', requireAuth, asyncHandler(async (req, res) => {

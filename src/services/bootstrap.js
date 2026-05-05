@@ -39,7 +39,28 @@ async function ensureDefaultAdmin() {
   );
 }
 
+async function ensureAttendanceDayType() {
+  await query(
+    `
+    IF COL_LENGTH('attendance_days', 'day_type') IS NULL
+    BEGIN
+      ALTER TABLE attendance_days
+      ADD day_type CHAR(1) NOT NULL CONSTRAINT DF_attendance_days_day_type DEFAULT 'N';
+    END
+    `
+  );
+
+  await query(
+    `
+    UPDATE attendance_days
+    SET day_type = 'N'
+    WHERE day_type IS NULL OR day_type NOT IN ('N', 'V', 'L')
+    `
+  );
+}
+
 async function bootstrapData() {
+  await ensureAttendanceDayType();
   await ensureEmployees();
   await ensureDefaultAdmin();
 }

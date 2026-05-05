@@ -61,10 +61,12 @@ CREATE TABLE attendance_days (
   day_id INT IDENTITY(1,1) PRIMARY KEY,
   employee_id INT NOT NULL,
   work_date DATE NOT NULL,
+  day_type CHAR(1) NOT NULL DEFAULT 'N',
   import_batch_id INT NOT NULL,
   created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
   CONSTRAINT FK_day_employee FOREIGN KEY (employee_id) REFERENCES employees(employee_id),
   CONSTRAINT FK_day_batch FOREIGN KEY (import_batch_id) REFERENCES import_batches(import_batch_id),
+  CONSTRAINT CK_attendance_days_type CHECK (day_type IN ('N', 'V', 'L')),
   CONSTRAINT UQ_day UNIQUE (employee_id, work_date, import_batch_id)
 );
 GO
