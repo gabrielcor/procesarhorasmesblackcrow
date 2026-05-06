@@ -89,6 +89,6 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 	- Admin: requiere employeeId.
 	- Devuelve historial de cambios de slots del mes con usuario, fecha, valores antes/despues y comentario.
 
-## Nota importante del entorno actual
-
-En este entorno de trabajo no hay Node.js ni npm instalados, por lo que no fue posible ejecutar ni validar la app en runtime aqui. El codigo y scripts quedaron implementados para que puedas correrlos localmente o en CI/CD con Node disponible.
+## Despliegue en Azure del paquete node
+- Hacer un .zip con node_modules, public, sql, scr,view y los dos archivos package-lock.json y packaje.json
+- Subirlo como .zip al Web App

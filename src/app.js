@@ -74,10 +74,17 @@ app.use((err, req, res, _next) => {
 });
 
 async function start() {
-  await bootstrapData();
   app.listen(env.port, () => {
     console.log(`Servidor iniciado en puerto ${env.port}`);
   });
+
+  try {
+    await bootstrapData();
+    console.log('Bootstrap completado');
+  } catch (error) {
+    const details = error && (error.stack || error.message || JSON.stringify(error));
+    console.error('Error en bootstrap:', details);
+  }
 }
 
 start().catch((error) => {
