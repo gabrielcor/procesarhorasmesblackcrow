@@ -33,6 +33,18 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 - public/
 - sql/001_schema.sql
 
+## 📚 Documentación Detallada
+
+Para una revisión **in-depth** de la arquitectura, módulos, frameworks y patrones de implementación, consulta la **[Documentación Completa](./docs/README.md)**.
+
+La documentación incluye:
+- **[Arquitectura del Sistema](./docs/ARCHITECTURE.md)** - Diseño general, capas, flujos de datos
+- **[Módulos e Interacciones](./docs/MODULES.md)** - Detalle de cada módulo y sus responsabilidades
+- **[Diagramas de Interacción](./docs/MODULES_DIAGRAM.md)** - Representaciones visuales
+- **[Frameworks & Tecnologías](./docs/FRAMEWORKS.md)** - Referencia completa de librerías usadas
+- **[Concerns & Implementación](./docs/CONCERNS.md)** - Cómo se implementan vistas, APIs, BD, autenticación, etc.
+- **[Guía de Despliegue](./docs/DEPLOYMENT.md)** - Instrucciones para diferentes ambientes
+
 ## Requisitos
 
 - Node.js 20+
