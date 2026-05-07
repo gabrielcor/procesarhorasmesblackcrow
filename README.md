@@ -104,3 +104,4 @@ La documentación incluye:
 ## Despliegue en Azure del paquete node
 - Hacer un .zip con node_modules, public, sql, scr,view y los dos archivos package-lock.json y packaje.json
 - Subirlo como .zip al Web App
+app-deploy.zip
