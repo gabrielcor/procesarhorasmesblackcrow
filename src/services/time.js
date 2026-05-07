@@ -64,7 +64,7 @@ function pairDailyPunches(rawTimes) {
 }
 
 function calculateWorkedMinutes(slots) {
-  return slots.reduce((sum, slot) => {
+  return slots.reduce((sum, slot, index) => {
     if (!slot.currentStartTime || !slot.currentEndTime) {
       return sum;
     }
@@ -75,8 +75,14 @@ function calculateWorkedMinutes(slots) {
       return sum;
     }
 
-    const minutes = toMinutes(end) - toMinutes(start);
+    let minutes = toMinutes(end) - toMinutes(start);
     if (minutes > 0) {
+      const isFirstSlot = Number(slot.slotIndex) === 1 || (slot.slotIndex == null && index === 0);
+      if (isFirstSlot && minutes > 480) {
+        // Subtract lunch up to 60 minutes without dropping below 480.
+        minutes = Math.max(480, minutes - 60);
+      }
+
       return sum + minutes;
     }
 

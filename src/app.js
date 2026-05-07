@@ -13,6 +13,7 @@ const importRoutes = require('./routes/importRoutes');
 const holidaysRoutes = require('./routes/holidaysRoutes');
 const downloadRoutes = require('./routes/downloadRoutes');
 const apiRoutes = require('./routes/apiRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 const { requireAuth } = require('./middleware/auth');
 
 const app = express();
@@ -58,6 +59,7 @@ app.use(importRoutes);
 app.use(holidaysRoutes);
 app.use(downloadRoutes);
 app.use(apiRoutes);
+app.use(reportRoutes);
 
 app.get('/', requireAuth, (req, res) => {
   res.render('dashboard');

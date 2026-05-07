@@ -1,0 +1,65 @@
+<%- include('partials/header') %>
+<section class="card">
+  <h1>Reporte resumen</h1>
+  <% if (message) { %><p class="info"><%= message %></p><% } %>
+
+  <form method="get" action="/report" class="form-inline">
+    <label>From</label>
+    <input type="month" name="from" value="<%= from %>" required />
+
+    <label>To</label>
+    <input type="month" name="to" value="<%= to %>" required />
+
+    <% if (isAdmin) { %>
+      <label>Empleado</label>
+      <select name="employeeId">
+        <option value="">Seleccione</option>
+        <% employees.forEach((e) => { %>
+          <option value="<%= e.employee_id %>" <%= Number(employeeId) === Number(e.employee_id) ? 'selected' : '' %>>#<%= e.employee_number %> - <%= e.display_name %></option>
+        <% }) %>
+      </select>
+    <% } %>
+
+    <button type="submit">Ver resumen</button>
+  </form>
+</section>
+
+<% if (employee && months && months.length > 0) { %>
+<section class="card">
+  <p><strong>Empleado:</strong> #<%= employee.employee_number %> - <%= employee.display_name %></p>
+  <table>
+    <thead>
+      <tr>
+        <th>Mes</th>
+        <th>Total minutos trabajados</th>
+        <th>Minutos requeridos</th>
+        <th>Tolerancia mensual</th>
+        <th>Minutos requeridos luego de tolerancia</th>
+        <th>Saldo final</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% months.forEach((row) => { %>
+        <tr>
+          <td><%= row.month %></td>
+          <td><%= row.totalWorkedMinutes %></td>
+          <td><%= row.requiredMinutes %></td>
+          <td><%= row.allowanceMinutes %></td>
+          <td><%= row.requiredAfterAllowance %></td>
+          <td class="<%= row.balanceMinutes >= 0 ? 'positive' : 'negative' %>"><%= row.balanceMinutes %></td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</section>
+
+<section class="card summary-grid">
+  <div>Total minutos trabajados: <strong><%= summary.totalWorkedMinutes %></strong></div>
+  <div>Minutos requeridos: <strong><%= summary.requiredMinutes %></strong></div>
+  <div>Tolerancia mensual: <strong><%= summary.allowanceMinutes %></strong></div>
+  <div>Minutos requeridos luego de tolerancia: <strong><%= summary.requiredAfterAllowance %></strong></div>
+  <div>Saldo final: <strong class="<%= summary.balanceMinutes >= 0 ? 'positive' : 'negative' %>"><%= summary.balanceMinutes %></strong></div>
+</section>
+<% } %>
+
+<%- include('partials/footer') %>
