@@ -2,7 +2,7 @@ const express = require('express');
 const dayjs = require('dayjs');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
-const { calculateWorkedMinutes } = require('../services/time');
+const { calculateWorkedMinutes, computeRequiredMinutes } = require('../services/time');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -201,6 +201,7 @@ router.get('/report', requireAuth, asyncHandler(async (req, res) => {
   }
 
   const allowanceMinutes = 45;
+  const holidaySet = new Set(holidayMap.keys());
   const monthlyRows = monthsInRange.map((month) => {
     const dayMap = monthDayMap.get(month) || new Map();
     let totalWorkedMinutes = 0;
@@ -209,7 +210,7 @@ router.get('/report', requireAuth, asyncHandler(async (req, res) => {
       totalWorkedMinutes += calculateDayWorkedMinutes(day);
     }
 
-    const requiredMinutes = Number(employee.required_minutes || 0);
+    const requiredMinutes = computeRequiredMinutes(employee, month, holidaySet);
     const requiredAfterAllowance = requiredMinutes - allowanceMinutes;
 
     return {

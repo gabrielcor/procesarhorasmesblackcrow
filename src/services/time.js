@@ -98,9 +98,43 @@ function monthBoundaries(yearMonth) {
   };
 }
 
+/**
+ * Returns the required minutes for an employee in a given month.
+ * For employee number 2, the value is dynamic: count of working days
+ * (Sunday–Thursday) in the month, excluding holidays, multiplied by 8 hours.
+ * For all other employees the fixed value from the DB is returned.
+ *
+ * @param {object} employee - employee row with employee_number and required_minutes
+ * @param {string} yearMonth - format 'YYYY-MM'
+ * @param {Set<string>} holidaySet - set of holiday date strings 'YYYY-MM-DD'
+ * @returns {number} required minutes
+ */
+function computeRequiredMinutes(employee, yearMonth, holidaySet) {
+  if (Number(employee.employee_number) !== 2) {
+    return Number(employee.required_minutes || 0);
+  }
+
+  // Employee 2 works Sunday (0) through Thursday (4), excluding holidays
+  const start = dayjs(`${yearMonth}-01`);
+  const daysInMonth = start.daysInMonth();
+  let workDays = 0;
+  for (let d = 1; d <= daysInMonth; d += 1) {
+    const date = start.date(d);
+    const dow = date.day(); // 0=Sun, 1=Mon, ..., 6=Sat
+    if (dow <= 4) { // Sunday to Thursday
+      const dateStr = date.format('YYYY-MM-DD');
+      if (!holidaySet.has(dateStr)) {
+        workDays += 1;
+      }
+    }
+  }
+  return workDays * 8 * 60;
+}
+
 module.exports = {
   parseHm,
   pairDailyPunches,
   calculateWorkedMinutes,
-  monthBoundaries
+  monthBoundaries,
+  computeRequiredMinutes
 };

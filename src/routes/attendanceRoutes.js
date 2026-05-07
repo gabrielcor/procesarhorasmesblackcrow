@@ -2,7 +2,7 @@ const express = require('express');
 const dayjs = require('dayjs');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
-const { calculateWorkedMinutes, parseHm } = require('../services/time');
+const { calculateWorkedMinutes, parseHm, computeRequiredMinutes } = require('../services/time');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -208,7 +208,8 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
   });
 
   const allowanceMinutes = 45;
-  const requiredMinutes = Number(employee.required_minutes || 0);
+  const holidaySet = new Set(holidayMap.keys());
+  const requiredMinutes = computeRequiredMinutes(employee, yearMonth, holidaySet);
   const requiredAfterAllowance = requiredMinutes - allowanceMinutes;
   const balanceMinutes = totalWorkedMinutes - requiredAfterAllowance;
 
