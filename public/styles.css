@@ -268,3 +268,48 @@ th {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Employee administration follows the existing app's panel, type and accent tokens. */
+.employee-page h1 { margin: 0 0 8px; font-size: 28px; }
+.employee-page h2 { margin: 0 0 16px; font-size: 20px; }
+.employee-heading { margin-bottom: 24px; }
+.employee-heading p { margin: 0; }
+.employee-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: start; }
+.employee-layout .card { margin-bottom: 0; box-shadow: none; min-width: 0; }
+.employee-page a { color: var(--accent); text-underline-offset: 3px; }
+.employee-field { display: grid; gap: 6px; }
+.employee-field input { width: 100%; min-width: 0; font: inherit; }
+.employee-field label, .employee-hours legend { font-size: 14px; font-weight: 600; }
+.employee-field input[readonly] { background: #f1f5f9; color: var(--muted); }
+.employee-field input[aria-invalid="true"] { border-color: var(--danger); }
+.employee-hours { margin: 0; padding: 0; border: 0; min-width: 0; }
+.employee-hours legend { margin-bottom: 8px; }
+.employee-hours-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 6px; }
+.employee-page small { font-size: 12px; line-height: 1.5; }
+.employee-active { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; }
+.employee-active input { width: 18px; height: 18px; accent-color: var(--accent); }
+.employee-help { font-size: 13px; line-height: 1.5; margin: 0 0 8px; }
+.employee-policy { border-left: 3px solid var(--accent); background: #f1f5f9; padding: 12px; font-size: 14px; line-height: 1.5; }
+.employee-policy p { margin: 6px 0 0; }
+.employee-list-heading { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+.employee-list-heading span { font-size: 13px; }
+.employee-table-scroll { overflow-x: auto; margin-top: 16px; }
+.employee-table { min-width: 620px; }
+.employee-table th, .employee-table td { padding: 12px 10px; text-align: left; vertical-align: middle; }
+.employee-table th[scope="row"] { background: transparent; font-weight: 600; }
+.employee-cell-note { display: block; margin-top: 4px; }
+.employee-status { display: inline-flex; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.employee-status.active { color: #166534; background: #dcfce7; }
+.employee-status.inactive { color: #475569; background: #e2e8f0; }
+.employee-edit { max-width: 580px; margin: 0 auto; }
+.employee-edit h1 { margin-top: 20px; }
+.employee-page button { min-height: 42px; font: inherit; font-weight: 600; }
+.employee-page :is(a, button, input, .employee-table-scroll):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+@media (max-width: 1000px) {
+  .employee-layout { grid-template-columns: minmax(0, 1fr); }
+  .employee-create { max-width: none; }
+}
+@media (max-width: 900px) {
+  .topbar { align-items: flex-start; flex-wrap: wrap; gap: 14px; }
+  .topbar nav { flex-wrap: wrap; gap: 12px 14px; }
+}

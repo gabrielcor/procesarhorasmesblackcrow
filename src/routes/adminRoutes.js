@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { query } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const asyncHandler = require('../utils/asyncHandler');
+const { canAssignEmployee } = require('../services/employees');
 
 const router = express.Router();
 
@@ -16,7 +17,7 @@ router.get('/admin/users', requireAdmin, asyncHandler(async (req, res) => {
     `
   );
 
-  const employees = await query('SELECT employee_id, employee_number, display_name FROM employees ORDER BY employee_number');
+  const employees = await query('SELECT employee_id, employee_number, display_name, is_active FROM employees ORDER BY employee_number');
 
   res.render('users', {
     users,
@@ -35,6 +36,9 @@ router.post('/admin/users', requireAdmin, async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const employee = employeeId ? Number(employeeId) : null;
+    if (!await canAssignEmployee(employeeId)) {
+      return res.redirect('/admin/users?message=Selecciona+un+empleado+activo');
+    }
 
     await query(
       `
@@ -66,6 +70,11 @@ router.post('/admin/users/:id/update', requireAdmin, asyncHandler(async (req, re
   const employee = employeeId ? Number(employeeId) : null;
   const adminValue = isAdmin === 'on' ? 1 : 0;
   const activeValue = isActive === 'on' ? 1 : 0;
+  const currentUsers = await query('SELECT employee_id FROM users WHERE user_id = @userId', { userId });
+  if (!currentUsers.length) return res.status(404).send('Usuario no encontrado');
+  if (!await canAssignEmployee(employeeId, currentUsers[0].employee_id)) {
+    return res.redirect('/admin/users?message=Selecciona+un+empleado+activo');
+  }
 
   if (password && String(password).trim()) {
     const passwordHash = await bcrypt.hash(password, 10);

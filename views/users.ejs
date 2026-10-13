@@ -4,6 +4,7 @@
   <% if (message) { %><p class="info"><%= message %></p><% } %>
 
   <h2>Crear usuario</h2>
+  <p class="muted">Si el empleado no aparece, créalo o actívalo en <a href="/admin/employees">Empleados</a>.</p>
   <form method="post" action="/admin/users" class="form-grid">
     <label>Usuario</label>
     <input type="text" name="username" required />
@@ -14,7 +15,7 @@
     <label>Empleado</label>
     <select name="employeeId">
       <option value="">Sin empleado (solo admin)</option>
-      <% employees.forEach((employee) => { %>
+      <% employees.filter(employee => employee.is_active).forEach((employee) => { %>
         <option value="<%= employee.employee_id %>">#<%= employee.employee_number %> - <%= employee.display_name %></option>
       <% }) %>
     </select>
@@ -49,8 +50,8 @@
             <td>
               <select name="employeeId">
                 <option value="">Sin empleado</option>
-                <% employees.forEach((employee) => { %>
-                  <option value="<%= employee.employee_id %>" <%= Number(u.employee_id) === Number(employee.employee_id) ? 'selected' : '' %>>#<%= employee.employee_number %> - <%= employee.display_name %></option>
+                <% employees.filter(employee => employee.is_active || Number(employee.employee_id) === Number(u.employee_id)).forEach((employee) => { %>
+                  <option value="<%= employee.employee_id %>" <%= Number(u.employee_id) === Number(employee.employee_id) ? 'selected' : '' %>>#<%= employee.employee_number %> - <%= employee.display_name %><%= employee.is_active ? '' : ' (inactivo)' %></option>
                 <% }) %>
               </select>
             </td>

@@ -2,6 +2,7 @@
 <section class="card">
   <h1>Importar hoja mensual</h1>
   <% if (message) { %><p class="info"><%= message %></p><% } %>
+  <p class="muted">Solo se muestran empleados activos. Puedes crearlos o activarlos en <a href="/admin/employees">Empleados</a>.</p>
   <form method="post" action="/import" enctype="multipart/form-data" class="form-grid">
     <label>Empleado</label>
     <select name="employeeId" required>

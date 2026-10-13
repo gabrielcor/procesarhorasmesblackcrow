@@ -7,6 +7,7 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 - Login con usuario y clave.
 - Usuario admin por defecto: admin / pass1234* (se crea automaticamente al arrancar la app, si no existe).
 - Gestion de usuarios por admin con asignacion a empleado.
+- Administración de empleados por admin: crear, editar nombre y horas mensuales, desactivar y reactivar sin borrar historial.
 - Importacion de archivos .xls/.xlsx desde hoja Registros de asistencia.
 - Versionado de importaciones por empleado/mes (la ultima queda activa, las anteriores se conservan).
 - Visualizacion mensual con:
@@ -22,6 +23,23 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 	- Minutos requeridos del empleado
 	- Tolerancia fija de 45 minutos
 	- Saldo final positivo/negativo
+
+## Administrar empleados
+
+1. Iniciar sesión como administrador y abrir **Empleados** en el menú superior (`/admin/employees`).
+2. Completar un número único, el nombre, las horas y minutos requeridos al mes y pulsar **Crear empleado**. El número sugerido se puede cambiar antes de crear; después queda fijo.
+3. En el listado, abrir **Editar** para cambiar el nombre, las horas mensuales o el estado **Empleado activo**, y guardar los cambios.
+4. Para dar acceso al empleado, abrir **Usuarios**, crear una cuenta y seleccionar el empleado activo.
+
+Desactivar conserva la asistencia, las importaciones y las cuentas existentes. Impide nuevas importaciones y nuevas asignaciones de cuentas a ese empleado; no revoca el acceso de las cuentas ya vinculadas. Para revocar acceso, desactivar la cuenta en **Usuarios**. Asistencia y Reporte mantienen todos los empleados disponibles para consultar su historial.
+
+El empleado Nº 2 conserva su regla especial: 8 horas por día de domingo a jueves, excluyendo feriados; sus horas se calculan cada mes y no se editan manualmente. Para los demás empleados, cambiar las horas requeridas también cambia los cálculos de reportes históricos.
+
+La función utiliza la tabla `employees` existente y su campo `is_active`; no requiere ejecutar nuevamente el script de creación del esquema.
+
+## Verificación
+
+`npm test` ejecuta pruebas HTTP con una base de datos simulada: permisos, protección de formularios, validación, duplicados, creación, edición, estado e integración con usuarios/importación. Estas pruebas no escriben en la base de datos configurada.
 
 ## Estructura
 

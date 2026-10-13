@@ -8,6 +8,7 @@ const { parseAttendanceSheet } = require('../services/excelParser');
 const { getPool, sql } = require('../db');
 const { query } = require('../db');
 const asyncHandler = require('../utils/asyncHandler');
+const { positiveId } = require('../services/employees');
 
 const router = express.Router();
 
@@ -24,7 +25,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage });
 
 router.get('/import', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
-  const employees = await query('SELECT employee_id, employee_number, display_name FROM employees ORDER BY employee_number');
+  const employees = await query('SELECT employee_id, employee_number, display_name FROM employees WHERE is_active = 1 ORDER BY employee_number');
   return res.render('upload', {
     employees,
     message: req.query.message || null
@@ -36,14 +37,19 @@ router.post('/import', requireAuth, requireAdmin, upload.single('worksheet'), as
     return res.redirect('/import?message=Debe+seleccionar+un+archivo');
   }
 
-  const employeeId = Number(req.body.employeeId);
+  const absPath = path.resolve(req.file.path);
+  const employeeId = positiveId(req.body.employeeId);
   if (!employeeId) {
+    if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
     return res.redirect('/import?message=Debe+seleccionar+empleado');
   }
 
-  const absPath = path.resolve(req.file.path);
-
   try {
+    const employees = await query('SELECT employee_id FROM employees WHERE employee_id = @employeeId AND is_active = 1', { employeeId });
+    if (!employees.length) {
+      if (fs.existsSync(absPath)) fs.unlinkSync(absPath);
+      return res.redirect('/import?message=Selecciona+un+empleado+activo');
+    }
     const parsed = parseAttendanceSheet(absPath);
 
     const pool = await getPool();
@@ -51,6 +57,11 @@ router.post('/import', requireAuth, requireAdmin, upload.single('worksheet'), as
     await tx.begin();
 
     try {
+      // Hold this row until commit so a concurrent deactivation cannot race an import.
+      const activeEmployee = await new sql.Request(tx).input('employeeId', employeeId).query(
+        'SELECT employee_id FROM employees WITH (UPDLOCK, HOLDLOCK) WHERE employee_id = @employeeId AND is_active = 1'
+      );
+      if (!activeEmployee.recordset.length) throw new Error('El empleado está inactivo. Actívalo antes de importar.');
       await new sql.Request(tx)
         .input('employeeId', employeeId)
         .input('yearMonth', parsed.yearMonth)

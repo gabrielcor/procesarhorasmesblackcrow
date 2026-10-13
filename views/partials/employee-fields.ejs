@@ -1,0 +1,34 @@
+<% if (errors.general) { %><p class="error" role="alert"><%= errors.general %></p><% } %>
+<div class="employee-field">
+  <label for="employee-number">Número de empleado</label>
+  <input id="employee-number" type="number" name="employeeNumber" value="<%= form.employeeNumber %>" min="1" max="2147483647" step="1" required <%= editing ? 'readonly' : '' %> aria-invalid="<%= Boolean(errors.employeeNumber) %>" aria-describedby="employee-number-help" />
+  <small id="employee-number-help" class="<%= errors.employeeNumber ? 'error' : 'muted' %>" <%- errors.employeeNumber ? 'role="alert"' : '' %>><%= errors.employeeNumber || (editing ? 'El número identifica al empleado y no se puede cambiar.' : 'Debe ser único. Puedes cambiar el número sugerido.') %></small>
+</div>
+<div class="employee-field">
+  <label for="employee-name">Nombre</label>
+  <input id="employee-name" type="text" name="displayName" value="<%= form.displayName %>" maxlength="120" required autocomplete="name" aria-invalid="<%= Boolean(errors.displayName) %>" aria-describedby="employee-name-help" />
+  <small id="employee-name-help" class="<%= errors.displayName ? 'error' : 'muted' %>" <%- errors.displayName ? 'role="alert"' : '' %>><%= errors.displayName || 'Nombre que aparecerá en asistencia, reportes y usuarios.' %></small>
+</div>
+<% if (editing && Number(employee.employee_number) === 2) { %>
+  <div class="employee-policy">
+    <strong>Horas calculadas automáticamente</strong>
+    <p>8 horas por día de domingo a jueves, excluyendo feriados. El total cambia cada mes.</p>
+  </div>
+<% } else { %>
+  <fieldset class="employee-hours">
+    <legend>Horas requeridas al mes</legend>
+    <div class="employee-hours-inputs">
+      <div class="employee-field">
+        <label for="employee-hours">Horas</label>
+        <input id="employee-hours" type="number" name="requiredHours" value="<%= form.requiredHours %>" min="0" max="744" step="1" required aria-invalid="<%= Boolean(errors.requiredHours) %>" aria-describedby="employee-hours-help" />
+      </div>
+      <div class="employee-field">
+        <label for="employee-minutes">Minutos</label>
+        <input id="employee-minutes" type="number" name="requiredMinutes" value="<%= form.requiredMinutes %>" min="0" max="59" step="1" required aria-invalid="<%= Boolean(errors.requiredMinutes) %>" aria-describedby="employee-hours-help" />
+      </div>
+    </div>
+    <small id="employee-hours-help" class="<%= errors.requiredHours || errors.requiredMinutes ? 'error' : 'muted' %>" <%- errors.requiredHours || errors.requiredMinutes ? 'role="alert"' : '' %>><%= errors.requiredHours || errors.requiredMinutes || 'Ejemplo: 160 horas y 30 minutos. Máximo: 744 horas.' %></small>
+  </fieldset>
+<% } %>
+<label class="inline-check employee-active"><input type="checkbox" name="isActive" <%= form.isActive ? 'checked' : '' %> /> Empleado activo</label>
+<p class="muted employee-help">Los inactivos conservan su historial y sus cuentas existentes. No se pueden seleccionar para nuevas importaciones ni asignar a otras cuentas. El acceso de cada cuenta se administra en Usuarios.</p>

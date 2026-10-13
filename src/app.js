@@ -8,6 +8,7 @@ const { bootstrapData } = require('./services/bootstrap');
 
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const employeeRoutes = require('./routes/employeeRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const importRoutes = require('./routes/importRoutes');
 const holidaysRoutes = require('./routes/holidaysRoutes');
@@ -54,6 +55,7 @@ app.use((req, res, next) => {
 
 app.use(authRoutes);
 app.use(adminRoutes);
+app.use(employeeRoutes);
 app.use(attendanceRoutes);
 app.use(importRoutes);
 app.use(holidaysRoutes);

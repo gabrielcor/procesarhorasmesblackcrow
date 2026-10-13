@@ -1,0 +1,48 @@
+<%- include('partials/header') %>
+<div class="employee-page">
+  <section class="employee-heading">
+    <h1>Empleados</h1>
+    <p class="muted">Administra los nombres, las horas mensuales y el estado de tu equipo.</p>
+  </section>
+  <% if (message) { %><p class="info" role="status"><%= message %> <a href="/admin/users">Ir a Usuarios</a></p><% } %>
+  <div class="employee-layout">
+    <section class="card employee-create">
+      <h2>Crear empleado</h2>
+      <form method="post" action="/admin/employees" class="form-grid">
+        <input type="hidden" name="csrfToken" value="<%= employeeCsrfToken %>" />
+        <%- include('partials/employee-fields', { editing: false, employee: null }) %>
+        <p class="muted employee-help">El Nº 2 tiene una regla especial: 8 horas por día de domingo a jueves, excluyendo feriados.</p>
+        <button type="submit">Crear empleado</button>
+      </form>
+    </section>
+    <section class="card employee-list">
+      <div class="employee-list-heading">
+        <h2>Listado</h2>
+        <span class="muted"><%= employees.length %> empleados · <%= employees.filter(e => e.is_active).length %> activos</span>
+      </div>
+      <p class="muted employee-help">Para desactivar o reactivar un empleado, abre Editar. Su historial se conserva.</p>
+      <% if (!employees.length) { %>
+        <p>Todavía no hay empleados. Crea el primero con el formulario.</p>
+      <% } else { %>
+        <div class="employee-table-scroll" role="region" aria-label="Listado de empleados" tabindex="0">
+          <table class="employee-table">
+            <thead><tr><th scope="col">Nº</th><th scope="col">Nombre</th><th scope="col">Horas al mes</th><th scope="col">Estado</th><th scope="col">Cuentas</th><th scope="col">Acciones</th></tr></thead>
+            <tbody>
+              <% employees.forEach(employee => { %>
+                <tr>
+                  <td><%= employee.employee_number %></td>
+                  <th scope="row"><%= employee.display_name %></th>
+                  <td><% if (Number(employee.employee_number) === 2) { %>Según calendario<small class="muted employee-cell-note">8 h · domingo a jueves · sin feriados</small><% } else { %><%= formatRequiredTime(employee.required_minutes) %><% } %></td>
+                  <td><span class="employee-status <%= employee.is_active ? 'active' : 'inactive' %>"><%= employee.is_active ? 'Activo' : 'Inactivo' %></span></td>
+                  <td><%= employee.user_count %></td>
+                  <td><a href="/admin/employees/<%= employee.employee_id %>/edit" aria-label="Editar a <%= employee.display_name %>">Editar</a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </section>
+  </div>
+</div>
+<%- include('partials/footer') %>
