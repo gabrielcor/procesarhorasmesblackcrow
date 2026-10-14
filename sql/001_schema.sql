@@ -16,8 +16,16 @@ CREATE TABLE employees (
   employee_number INT NOT NULL UNIQUE,
   display_name NVARCHAR(120) NOT NULL,
   required_minutes INT NOT NULL,
+  requirement_mode VARCHAR(10) NOT NULL CONSTRAINT DF_employees_requirement_mode DEFAULT 'monthly',
+  work_days_mask TINYINT NOT NULL CONSTRAINT DF_employees_work_days_mask DEFAULT 0,
+  daily_required_minutes INT NOT NULL CONSTRAINT DF_employees_daily_required_minutes DEFAULT 0,
   is_active BIT NOT NULL DEFAULT 1,
-  created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+  created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT CK_employees_requirement CHECK (
+    requirement_mode IN ('monthly', 'weekly') AND work_days_mask BETWEEN 0 AND 127
+    AND daily_required_minutes BETWEEN 0 AND 1440
+    AND (requirement_mode = 'monthly' OR (work_days_mask > 0 AND daily_required_minutes > 0))
+  )
 );
 GO
 
@@ -109,9 +117,9 @@ CREATE INDEX IX_days_employee_date ON attendance_days(employee_id, work_date);
 CREATE INDEX IX_holidays_date ON holidays(holiday_date);
 GO
 
-INSERT INTO employees (employee_number, display_name, required_minutes)
+INSERT INTO employees (employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes)
 VALUES
-  (1, N'Empleado 1', 7200),
-  (2, N'Empleado 2', 9600),
-  (3, N'Empleado 3', 8640);
+  (1, N'Empleado 1', 7200, 'monthly', 0, 0),
+  (2, N'Empleado 2', 9600, 'weekly', 31, 480),
+  (3, N'Empleado 3', 8640, 'monthly', 0, 0);
 GO

@@ -1,4 +1,6 @@
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 const { query } = require('../db');
 
 async function ensureEmployees() {
@@ -12,10 +14,11 @@ async function ensureEmployees() {
     await query(
       `
       IF NOT EXISTS (SELECT 1 FROM employees WHERE employee_number = @number)
-      INSERT INTO employees (employee_number, display_name, required_minutes)
-      VALUES (@number, @name, @requiredMinutes)
+      INSERT INTO employees (employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes)
+      VALUES (@number, @name, @requiredMinutes, @requirementMode, @workDaysMask, @dailyRequiredMinutes)
       `,
-      employee
+      { ...employee, requirementMode: employee.number === 2 ? 'weekly' : 'monthly',
+        workDaysMask: employee.number === 2 ? 31 : 0, dailyRequiredMinutes: employee.number === 2 ? 480 : 0 }
     );
   }
 }
@@ -60,6 +63,7 @@ async function ensureAttendanceDayType() {
 }
 
 async function bootstrapData() {
+  await query(fs.readFileSync(path.resolve(__dirname, '../../sql/002_employee_requirements.sql'), 'utf8'));
   await ensureAttendanceDayType();
   await ensureEmployees();
   await ensureDefaultAdmin();

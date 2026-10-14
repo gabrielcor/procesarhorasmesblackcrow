@@ -2,7 +2,8 @@ const express = require('express');
 const dayjs = require('dayjs');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
-const { calculateWorkedMinutes, computeRequiredMinutes } = require('../services/time');
+const { calculateDayWorkedMinutes, computeRequiredMinutes } = require('../services/time');
+const { requirementDescription } = require('../services/employees');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -17,23 +18,6 @@ function normalizeDayType(value) {
   }
 
   return DAY_TYPE_NORMAL;
-}
-
-function calculateDayWorkedMinutes(day) {
-  if (day.dayType === DAY_TYPE_VACATION || day.dayType === DAY_TYPE_LEAVE) {
-    return 480;
-  }
-
-  const activeSlots = day.slots
-    .filter((slot) => !slot.isDeleted)
-    .sort((a, b) => a.slotIndex - b.slotIndex);
-
-  const baseMinutes = calculateWorkedMinutes(activeSlots);
-  if (day.isHoliday) {
-    return baseMinutes * 2;
-  }
-
-  return baseMinutes;
 }
 
 function parseMonth(value) {
@@ -124,7 +108,7 @@ router.get('/report', requireAuth, asyncHandler(async (req, res) => {
   }
 
   const employeeRows = await query(
-    'SELECT employee_id, employee_number, display_name, required_minutes FROM employees WHERE employee_id = @employeeId',
+    'SELECT employee_id, employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes FROM employees WHERE employee_id = @employeeId',
     { employeeId }
   );
 
@@ -207,7 +191,7 @@ router.get('/report', requireAuth, asyncHandler(async (req, res) => {
     let totalWorkedMinutes = 0;
 
     for (const day of dayMap.values()) {
-      totalWorkedMinutes += calculateDayWorkedMinutes(day);
+      totalWorkedMinutes += calculateDayWorkedMinutes(day, employee);
     }
 
     const requiredMinutes = computeRequiredMinutes(employee, month, holidaySet);
@@ -243,6 +227,7 @@ router.get('/report', requireAuth, asyncHandler(async (req, res) => {
     employeeId,
     employees,
     employee,
+    requirementDescription: requirementDescription(employee),
     months: monthlyRows,
     summary,
     isAdmin: req.session.user.isAdmin,

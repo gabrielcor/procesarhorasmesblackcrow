@@ -2,7 +2,7 @@ const express = require('express');
 const dayjs = require('dayjs');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
-const { calculateWorkedMinutes, computeRequiredMinutes } = require('../services/time');
+const { calculateDayWorkedMinutes, computeRequiredMinutes } = require('../services/time');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -38,7 +38,7 @@ router.get('/api/attendance/monthly', requireAuth, asyncHandler(async (req, res)
   }
 
   const employeeRows = await query(
-    'SELECT employee_id, employee_number, display_name, required_minutes FROM employees WHERE employee_id = @employeeId',
+    'SELECT employee_id, employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes FROM employees WHERE employee_id = @employeeId',
     { employeeId }
   );
 
@@ -55,6 +55,7 @@ router.get('/api/attendance/monthly', requireAuth, asyncHandler(async (req, res)
     SELECT
       d.day_id,
       CONVERT(varchar(10), d.work_date, 23) AS work_date,
+      d.day_type,
       s.slot_id,
       s.slot_index,
       s.original_start_time,
@@ -88,6 +89,7 @@ router.get('/api/attendance/monthly', requireAuth, asyncHandler(async (req, res)
     dayMap.set(date, {
       dayId: null,
       workDate: date,
+      dayType: 'N',
       isHoliday: holidayMap.has(date),
       holidayName: holidayMap.get(date) || null,
       slots: [],
@@ -102,6 +104,7 @@ router.get('/api/attendance/monthly', requireAuth, asyncHandler(async (req, res)
 
     const day = dayMap.get(row.work_date);
     day.dayId = day.dayId || row.day_id;
+    day.dayType = row.day_type || 'N';
 
     if (row.slot_id) {
       day.slots.push({
@@ -122,7 +125,7 @@ router.get('/api/attendance/monthly', requireAuth, asyncHandler(async (req, res)
     day.slots = day.slots
       .filter((slot) => !slot.isDeleted)
       .sort((a, b) => a.slotIndex - b.slotIndex);
-    day.workedMinutes = calculateWorkedMinutes(day.slots);
+    day.workedMinutes = calculateDayWorkedMinutes(day, employee);
     totalWorkedMinutes += day.workedMinutes;
 
     const used = new Set(day.slots.map((slot) => slot.slotIndex));
@@ -149,7 +152,14 @@ router.get('/api/attendance/monthly', requireAuth, asyncHandler(async (req, res)
     employee: {
       id: employee.employee_id,
       number: employee.employee_number,
-      name: employee.display_name
+      name: employee.display_name,
+      requirement: {
+        mode: employee.requirement_mode,
+        monthlyMinutes: employee.required_minutes,
+        workDays: Array.from({ length: 7 }, (_, day) => day).filter(day => employee.work_days_mask & (1 << day)),
+        dailyMinutes: employee.daily_required_minutes,
+        excludeHolidays: employee.requirement_mode === 'weekly'
+      }
     },
     summary: {
       totalWorkedMinutes,

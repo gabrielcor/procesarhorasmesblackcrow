@@ -78,17 +78,13 @@ app.use((err, req, res, _next) => {
 });
 
 async function start() {
+  // Do not serve requests against the previous schema or a half-finished migration.
+  await bootstrapData();
+  console.log('Bootstrap completado');
   app.listen(env.port, () => {
     console.log(`Servidor iniciado en puerto ${env.port}`);
   });
 
-  try {
-    await bootstrapData();
-    console.log('Bootstrap completado');
-  } catch (error) {
-    const details = error && (error.stack || error.message || JSON.stringify(error));
-    console.error('Error en bootstrap:', details);
-  }
 }
 
 start().catch((error) => {

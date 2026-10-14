@@ -148,6 +148,7 @@
 <% } %>
 
 <% if (summary) { %>
+<section class="card"><strong>Regla de cálculo:</strong> <%= requirementDescription %><p class="muted employee-help">Todas las horas trabajadas cuentan a favor del saldo mensual, incluso fuera de los días seleccionados.</p></section>
 <section class="card summary-grid">
   <div>Total minutos trabajados: <strong><%= summary.totalWorkedMinutes %></strong></div>
   <div>Minutos requeridos: <strong><%= summary.requiredMinutes %></strong></div>

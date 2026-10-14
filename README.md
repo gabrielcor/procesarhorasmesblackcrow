@@ -27,19 +27,22 @@ Aplicacion web para importar hojas de asistencia mensuales, gestionarlas por usu
 ## Administrar empleados
 
 1. Iniciar sesión como administrador y abrir **Empleados** en el menú superior (`/admin/employees`).
-2. Completar un número único, el nombre, las horas y minutos requeridos al mes y pulsar **Crear empleado**. El número sugerido se puede cambiar antes de crear; después queda fijo.
-3. En el listado, abrir **Editar** para cambiar el nombre, las horas mensuales o el estado **Empleado activo**, y guardar los cambios.
-4. Para dar acceso al empleado, abrir **Usuarios**, crear una cuenta y seleccionar el empleado activo.
+2. Completar un número único, el nombre y la **Regla de cálculo**, y pulsar **Crear empleado**. El número sugerido se puede cambiar antes de crear; después queda fijo.
+3. Elegir **Horas/minutos por mes** para una cuota fija, o **Días de semana y horas por día** para seleccionar lunes, martes, etc. e indicar el tiempo diario. Esta segunda regla cuenta los días seleccionados del mes y excluye los feriados registrados en **Feriados**.
+4. En el listado, abrir **Editar** para cambiar el nombre, la regla o el estado **Empleado activo**, y guardar los cambios.
+5. Para dar acceso al empleado, abrir **Usuarios**, crear una cuenta y seleccionar el empleado activo.
 
 Desactivar conserva la asistencia, las importaciones y las cuentas existentes. Impide nuevas importaciones y nuevas asignaciones de cuentas a ese empleado; no revoca el acceso de las cuentas ya vinculadas. Para revocar acceso, desactivar la cuenta en **Usuarios**. Asistencia y Reporte mantienen todos los empleados disponibles para consultar su historial.
 
-El empleado Nº 2 conserva su regla especial: 8 horas por día de domingo a jueves, excluyendo feriados; sus horas se calculan cada mes y no se editan manualmente. Para los demás empleados, cambiar las horas requeridas también cambia los cálculos de reportes históricos.
+Todas las horas registradas se suman al saldo mensual, aunque se trabajen fuera de los días seleccionados. Por ejemplo, una jornada pendiente de jueves puede recuperarse trabajando el martes. Se mantienen las reglas existentes de colación, tolerancia de 45 minutos y doble crédito por trabajo real en feriados. Para la regla semanal, vacaciones/licencias acreditan el tiempo diario configurado solo en días seleccionados no feriados; la regla mensual mantiene el crédito de 8 horas.
 
-La función utiliza la tabla `employees` existente y su campo `is_active`; no requiere ejecutar nuevamente el script de creación del esquema.
+Asistencia, Reporte y la API usan la misma regla guardada. Cambiarla también actualiza los cálculos históricos. La regla del Nº 2 se convierte inicialmente a domingo a jueves, 8 horas por día, excluyendo feriados; luego se puede modificar como cualquier otra.
+
+Al arrancar se ejecuta `sql/002_employee_requirements.sql`, una migración transaccional que agrega tres columnas a `employees`. Convierte la regla antigua del Nº 2 solo la primera vez y conserva las configuraciones posteriores, sin borrar registros. La cuenta de SQL necesita permiso para alterar la tabla; también se puede ejecutar ese archivo con una cuenta de migraciones antes de reiniciar. No ejecutar nuevamente `sql/001_schema.sql` sobre una base existente: ese archivo recrea las tablas. Las instalaciones nuevas ya incluyen las columnas y la regla inicial.
 
 ## Verificación
 
-`npm test` ejecuta pruebas HTTP con una base de datos simulada: permisos, protección de formularios, validación, duplicados, creación, edición, estado e integración con usuarios/importación. Estas pruebas no escriben en la base de datos configurada.
+`npm test` ejecuta pruebas de calendarios y saldos, y pruebas HTTP con una base de datos simulada: permisos, validación, duplicados, creación, edición, estado, reglas e integración con usuarios/importación. Comprueba también que Asistencia, Reporte y API concuerden al compensar una jornada en otro día. Estas pruebas no ejecutan la migración ni escriben en la base configurada.
 
 ## Estructura
 

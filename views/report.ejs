@@ -27,6 +27,7 @@
 <% if (employee && months && months.length > 0) { %>
 <section class="card">
   <p><strong>Empleado:</strong> #<%= employee.employee_number %> - <%= employee.display_name %></p>
+  <p><strong>Regla de cálculo:</strong> <%= requirementDescription %></p>
   <table>
     <thead>
       <tr>

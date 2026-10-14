@@ -9,14 +9,17 @@
   <input id="employee-name" type="text" name="displayName" value="<%= form.displayName %>" maxlength="120" required autocomplete="name" aria-invalid="<%= Boolean(errors.displayName) %>" aria-describedby="employee-name-help" />
   <small id="employee-name-help" class="<%= errors.displayName ? 'error' : 'muted' %>" <%- errors.displayName ? 'role="alert"' : '' %>><%= errors.displayName || 'Nombre que aparecerá en asistencia, reportes y usuarios.' %></small>
 </div>
-<% if (editing && Number(employee.employee_number) === 2) { %>
-  <div class="employee-policy">
-    <strong>Horas calculadas automáticamente</strong>
-    <p>8 horas por día de domingo a jueves, excluyendo feriados. El total cambia cada mes.</p>
-  </div>
-<% } else { %>
+<div class="employee-field">
+  <label for="employee-rule">Regla de cálculo</label>
+  <select id="employee-rule" name="requirementMode" required data-rule-selector aria-invalid="<%= Boolean(errors.requirementMode) %>" aria-describedby="employee-rule-help">
+    <option value="monthly" <%= form.requirementMode === 'monthly' ? 'selected' : '' %>>Horas/minutos por mes</option>
+    <option value="weekly" <%= form.requirementMode === 'weekly' ? 'selected' : '' %>>Días de semana y horas por día</option>
+  </select>
+  <small id="employee-rule-help" class="<%= errors.requirementMode ? 'error' : 'muted' %>" <%- errors.requirementMode ? 'role="alert"' : '' %>><%= errors.requirementMode || 'Define la obligación mensual. Todas las horas trabajadas cuentan a favor, incluso en otros días.' %></small>
+</div>
+<div data-rule-panel="monthly">
   <fieldset class="employee-hours">
-    <legend>Horas requeridas al mes</legend>
+    <legend>Cuota mensual</legend>
     <div class="employee-hours-inputs">
       <div class="employee-field">
         <label for="employee-hours">Horas</label>
@@ -29,6 +32,32 @@
     </div>
     <small id="employee-hours-help" class="<%= errors.requiredHours || errors.requiredMinutes ? 'error' : 'muted' %>" <%- errors.requiredHours || errors.requiredMinutes ? 'role="alert"' : '' %>><%= errors.requiredHours || errors.requiredMinutes || 'Ejemplo: 160 horas y 30 minutos. Máximo: 744 horas.' %></small>
   </fieldset>
-<% } %>
+</div>
+<div data-rule-panel="weekly" class="employee-weekly">
+  <fieldset class="employee-hours" aria-describedby="employee-days-help">
+    <legend>Días de trabajo</legend>
+    <div class="employee-weekdays">
+      <% weekdays.forEach(day => { %>
+        <label><input type="checkbox" name="workDays" value="<%= day.value %>" <%= form.workDays.includes(day.value) ? 'checked' : '' %> /> <%= day.label %></label>
+      <% }) %>
+    </div>
+    <small id="employee-days-help" class="<%= errors.workDays ? 'error' : 'muted' %>" <%- errors.workDays ? 'role="alert"' : '' %>><%= errors.workDays || 'Selecciona los días habituales. Los feriados se excluyen del tiempo requerido.' %></small>
+  </fieldset>
+  <fieldset class="employee-hours">
+    <legend>Tiempo requerido por día</legend>
+    <div class="employee-hours-inputs">
+      <div class="employee-field">
+        <label for="employee-daily-hours">Horas por día</label>
+        <input id="employee-daily-hours" type="number" name="dailyHours" value="<%= form.dailyHours %>" min="0" max="24" step="1" required aria-invalid="<%= Boolean(errors.dailyHours) %>" aria-describedby="employee-daily-help" />
+      </div>
+      <div class="employee-field">
+        <label for="employee-daily-minutes">Minutos por día</label>
+        <input id="employee-daily-minutes" type="number" name="dailyMinutes" value="<%= form.dailyMinutes %>" min="0" max="59" step="1" required aria-invalid="<%= Boolean(errors.dailyMinutes) %>" aria-describedby="employee-daily-help" />
+      </div>
+    </div>
+    <small id="employee-daily-help" class="<%= errors.dailyHours || errors.dailyMinutes ? 'error' : 'muted' %>" <%- errors.dailyHours || errors.dailyMinutes ? 'role="alert"' : '' %>><%= errors.dailyHours || errors.dailyMinutes || 'El total del mes es: días seleccionados que no sean feriados × tiempo por día. Mínimo: 1 minuto; máximo: 24 horas.' %></small>
+  </fieldset>
+  <p class="muted employee-help">Si falta un día y trabaja otro, las horas de ese otro día compensan el saldo mensual.</p>
+</div>
 <label class="inline-check employee-active"><input type="checkbox" name="isActive" <%= form.isActive ? 'checked' : '' %> /> Empleado activo</label>
 <p class="muted employee-help">Los inactivos conservan su historial y sus cuentas existentes. No se pueden seleccionar para nuevas importaciones ni asignar a otras cuentas. El acceso de cada cuenta se administra en Usuarios.</p>

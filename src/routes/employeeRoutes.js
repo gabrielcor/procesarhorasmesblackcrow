@@ -3,7 +3,7 @@ const express = require('express');
 const { query } = require('../db');
 const { requireAdmin } = require('../middleware/auth');
 const asyncHandler = require('../utils/asyncHandler');
-const { positiveId, employeeForm, validateEmployee, formatRequiredTime } = require('../services/employees');
+const { WEEKDAYS, positiveId, employeeForm, validateEmployee, requirementDescription } = require('../services/employees');
 
 const router = express.Router();
 router.use('/admin/employees', requireAdmin, (req, res, next) => {
@@ -17,7 +17,7 @@ router.use('/admin/employees', requireAdmin, (req, res, next) => {
 
 async function findEmployee(id) {
   const rows = await query(
-    'SELECT employee_id, employee_number, display_name, required_minutes, is_active FROM employees WHERE employee_id = @employeeId',
+    'SELECT employee_id, employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes, is_active FROM employees WHERE employee_id = @employeeId',
     { employeeId: id }
   );
   return rows[0] || null;
@@ -25,7 +25,7 @@ async function findEmployee(id) {
 
 async function renderEmployees(res, options = {}) {
   const employees = await query(`
-    SELECT e.employee_id, e.employee_number, e.display_name, e.required_minutes, e.is_active,
+    SELECT e.employee_id, e.employee_number, e.display_name, e.required_minutes, e.requirement_mode, e.work_days_mask, e.daily_required_minutes, e.is_active,
       (SELECT COUNT(*) FROM users u WHERE u.employee_id = e.employee_id) AS user_count
     FROM employees e
     ORDER BY e.employee_number
@@ -33,10 +33,12 @@ async function renderEmployees(res, options = {}) {
   const nextNumber = employees.reduce((max, employee) => Math.max(max, employee.employee_number), 0) + 1;
   return res.status(options.status || 200).render('employees', {
     employees,
-    form: options.form || { employeeNumber: nextNumber <= 2147483647 ? String(nextNumber) : '', displayName: '', requiredHours: '160', requiredMinutes: '0', isActive: true },
+    form: options.form || { employeeNumber: nextNumber <= 2147483647 ? String(nextNumber) : '', displayName: '', requiredHours: '160', requiredMinutes: '0',
+      requirementMode: 'monthly', workDays: [], dailyHours: '8', dailyMinutes: '0', isActive: true },
     errors: options.errors || {},
     message: options.message || null,
-    formatRequiredTime
+    requirementDescription,
+    weekdays: WEEKDAYS
   });
 }
 
@@ -44,7 +46,8 @@ function renderEdit(res, employee, options = {}) {
   return res.status(options.status || 200).render('employee-edit', {
     employee,
     form: options.form || employeeForm(employee),
-    errors: options.errors || {}
+    errors: options.errors || {},
+    weekdays: WEEKDAYS
   });
 }
 
@@ -65,8 +68,8 @@ router.post('/admin/employees', asyncHandler(async (req, res) => {
   if (Object.keys(errors).length) return renderEmployees(res, { form, errors, status: 400 });
   try {
     await query(`
-      INSERT INTO employees (employee_number, display_name, required_minutes, is_active)
-      VALUES (@employeeNumber, @displayName, @requiredMinutes, @isActive)
+      INSERT INTO employees (employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes, is_active)
+      VALUES (@employeeNumber, @displayName, @requiredMinutes, @requirementMode, @workDaysMask, @dailyRequiredMinutes, @isActive)
     `, values);
   } catch (error) {
     return renderEmployees(res, { form, errors: databaseError(error), status: 400 });
@@ -90,7 +93,8 @@ router.post('/admin/employees/:id/update', asyncHandler(async (req, res) => {
   try {
     await query(`
       UPDATE employees
-      SET display_name = @displayName, required_minutes = @requiredMinutes, is_active = @isActive
+      SET display_name = @displayName, required_minutes = @requiredMinutes, requirement_mode = @requirementMode,
+          work_days_mask = @workDaysMask, daily_required_minutes = @dailyRequiredMinutes, is_active = @isActive
       WHERE employee_id = @employeeId
     `, { ...values, employeeId });
   } catch (error) {

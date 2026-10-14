@@ -2,7 +2,8 @@ const express = require('express');
 const dayjs = require('dayjs');
 const { query } = require('../db');
 const { requireAuth, canAccessEmployee } = require('../middleware/auth');
-const { calculateWorkedMinutes, parseHm, computeRequiredMinutes } = require('../services/time');
+const { calculateDayWorkedMinutes, parseHm, computeRequiredMinutes } = require('../services/time');
+const { requirementDescription } = require('../services/employees');
 const asyncHandler = require('../utils/asyncHandler');
 
 const router = express.Router();
@@ -25,19 +26,6 @@ function normalizeDayType(value) {
   }
 
   return DAY_TYPE_NORMAL;
-}
-
-function calculateDayWorkedMinutes(day) {
-  if (day.dayType === DAY_TYPE_VACATION || day.dayType === DAY_TYPE_LEAVE) {
-    return 480;
-  }
-
-  const baseMinutes = calculateWorkedMinutes(day.slots);
-  if (day.isHoliday) {
-    return baseMinutes * 2;
-  }
-
-  return baseMinutes;
 }
 
 function hasAnySlotEntry(slot) {
@@ -114,7 +102,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
     : [];
 
   const employeeRows = await query(
-    'SELECT employee_id, employee_number, display_name, required_minutes FROM employees WHERE employee_id = @employeeId',
+    'SELECT employee_id, employee_number, display_name, required_minutes, requirement_mode, work_days_mask, daily_required_minutes FROM employees WHERE employee_id = @employeeId',
     { employeeId }
   );
 
@@ -202,7 +190,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
     const normalized = normalizeDaySlots(day.slots);
     day.visibleSlots = normalized.visibleSlots;
     day.missingSlotIndices = normalized.missingSlotIndices;
-    day.workedMinutes = calculateDayWorkedMinutes(day);
+    day.workedMinutes = calculateDayWorkedMinutes(day, employee);
     totalWorkedMinutes += day.workedMinutes;
     return day;
   });
@@ -218,6 +206,7 @@ router.get('/attendance', requireAuth, asyncHandler(async (req, res) => {
     employeeId,
     employees,
     employee,
+    requirementDescription: requirementDescription(employee),
     days,
     isAdmin: req.session.user.isAdmin,
     message: req.query.message || null,

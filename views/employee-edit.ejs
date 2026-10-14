@@ -3,7 +3,7 @@
   <a href="/admin/employees">← Volver a Empleados</a>
   <h1>Editar empleado</h1>
   <p class="muted">Actualiza los datos de <strong><%= employee.display_name %></strong>.</p>
-  <% if (Number(employee.employee_number) !== 2) { %><p class="employee-policy">Cambiar las horas mensuales actualiza también el cálculo de los reportes históricos de este empleado.</p><% } %>
+  <p class="employee-policy">Cambiar la regla actualiza también el cálculo de los reportes históricos de este empleado.</p>
   <form method="post" action="/admin/employees/<%= employee.employee_id %>/update" class="form-grid">
     <input type="hidden" name="csrfToken" value="<%= employeeCsrfToken %>" />
     <%- include('partials/employee-fields', { editing: true }) %>
@@ -13,4 +13,5 @@
     </div>
   </form>
 </section>
+<script src="/employee-rules.js" defer></script>
 <%- include('partials/footer') %>

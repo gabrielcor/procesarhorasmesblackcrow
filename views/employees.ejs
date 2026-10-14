@@ -2,7 +2,7 @@
 <div class="employee-page">
   <section class="employee-heading">
     <h1>Empleados</h1>
-    <p class="muted">Administra los nombres, las horas mensuales y el estado de tu equipo.</p>
+    <p class="muted">Administra los datos, las reglas de cálculo y el estado de tu equipo.</p>
   </section>
   <% if (message) { %><p class="info" role="status"><%= message %> <a href="/admin/users">Ir a Usuarios</a></p><% } %>
   <div class="employee-layout">
@@ -11,7 +11,6 @@
       <form method="post" action="/admin/employees" class="form-grid">
         <input type="hidden" name="csrfToken" value="<%= employeeCsrfToken %>" />
         <%- include('partials/employee-fields', { editing: false, employee: null }) %>
-        <p class="muted employee-help">El Nº 2 tiene una regla especial: 8 horas por día de domingo a jueves, excluyendo feriados.</p>
         <button type="submit">Crear empleado</button>
       </form>
     </section>
@@ -26,13 +25,13 @@
       <% } else { %>
         <div class="employee-table-scroll" role="region" aria-label="Listado de empleados" tabindex="0">
           <table class="employee-table">
-            <thead><tr><th scope="col">Nº</th><th scope="col">Nombre</th><th scope="col">Horas al mes</th><th scope="col">Estado</th><th scope="col">Cuentas</th><th scope="col">Acciones</th></tr></thead>
+            <thead><tr><th scope="col">Nº</th><th scope="col">Nombre</th><th scope="col">Regla de cálculo</th><th scope="col">Estado</th><th scope="col">Cuentas</th><th scope="col">Acciones</th></tr></thead>
             <tbody>
               <% employees.forEach(employee => { %>
                 <tr>
                   <td><%= employee.employee_number %></td>
                   <th scope="row"><%= employee.display_name %></th>
-                  <td><% if (Number(employee.employee_number) === 2) { %>Según calendario<small class="muted employee-cell-note">8 h · domingo a jueves · sin feriados</small><% } else { %><%= formatRequiredTime(employee.required_minutes) %><% } %></td>
+                  <td class="employee-rule-cell"><strong><%= employee.requirement_mode === 'weekly' ? 'Días de semana' : 'Cuota mensual' %></strong><small class="muted employee-cell-note"><%= requirementDescription(employee) %></small></td>
                   <td><span class="employee-status <%= employee.is_active ? 'active' : 'inactive' %>"><%= employee.is_active ? 'Activo' : 'Inactivo' %></span></td>
                   <td><%= employee.user_count %></td>
                   <td><a href="/admin/employees/<%= employee.employee_id %>/edit" aria-label="Editar a <%= employee.display_name %>">Editar</a></td>
@@ -45,4 +44,5 @@
     </section>
   </div>
 </div>
+<script src="/employee-rules.js" defer></script>
 <%- include('partials/footer') %>

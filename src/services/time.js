@@ -98,43 +98,46 @@ function monthBoundaries(yearMonth) {
   };
 }
 
-/**
- * Returns the required minutes for an employee in a given month.
- * For employee number 2, the value is dynamic: count of working days
- * (Sunday–Thursday) in the month, excluding holidays, multiplied by 8 hours.
- * For all other employees the fixed value from the DB is returned.
- *
- * @param {object} employee - employee row with employee_number and required_minutes
- * @param {string} yearMonth - format 'YYYY-MM'
- * @param {Set<string>} holidaySet - set of holiday date strings 'YYYY-MM-DD'
- * @returns {number} required minutes
- */
-function computeRequiredMinutes(employee, yearMonth, holidaySet) {
-  if (Number(employee.employee_number) !== 2) {
+function scheduledDayMinutes(employee, date, isHoliday = false) {
+  if (isHoliday) return 0;
+  const selected = Number(employee.work_days_mask) & (1 << dayjs(date).day());
+  return selected ? Number(employee.daily_required_minutes) : 0;
+}
+
+// Required time uses the saved rule; worked time is never filtered by this calendar.
+function computeRequiredMinutes(employee, yearMonth, holidaySet = new Set()) {
+  if (employee.requirement_mode !== 'weekly') {
     return Number(employee.required_minutes || 0);
   }
 
-  // Employee 2 works Sunday (0) through Thursday (4), excluding holidays
   const start = dayjs(`${yearMonth}-01`);
   const daysInMonth = start.daysInMonth();
-  let workDays = 0;
+  let requiredMinutes = 0;
   for (let d = 1; d <= daysInMonth; d += 1) {
     const date = start.date(d);
-    const dow = date.day(); // 0=Sun, 1=Mon, ..., 6=Sat
-    if (dow <= 4) { // Sunday to Thursday
-      const dateStr = date.format('YYYY-MM-DD');
-      if (!holidaySet.has(dateStr)) {
-        workDays += 1;
-      }
-    }
+    const dateStr = date.format('YYYY-MM-DD');
+    requiredMinutes += scheduledDayMinutes(employee, dateStr, holidaySet.has(dateStr));
   }
-  return workDays * 8 * 60;
+  return requiredMinutes;
+}
+
+function calculateDayWorkedMinutes(day, employee) {
+  if (day.dayType === 'V' || day.dayType === 'L') {
+    return employee.requirement_mode === 'weekly'
+      ? scheduledDayMinutes(employee, day.workDate, day.isHoliday) : 480;
+  }
+  const slots = day.slots.filter(slot => !slot.isDeleted).sort((a, b) => a.slotIndex - b.slotIndex);
+  const baseMinutes = calculateWorkedMinutes(slots);
+  // Preserve the existing double credit for actual work on holidays.
+  return day.isHoliday ? baseMinutes * 2 : baseMinutes;
 }
 
 module.exports = {
   parseHm,
   pairDailyPunches,
   calculateWorkedMinutes,
+  calculateDayWorkedMinutes,
+  scheduledDayMinutes,
   monthBoundaries,
   computeRequiredMinutes
 };

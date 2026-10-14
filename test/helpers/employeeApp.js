@@ -3,15 +3,17 @@ const express = require('express');
 const session = require('express-session');
 
 // Isolate HTTP tests from the configured SQL database before loading any routes.
-const state = { employees: [], users: [], mutationError: null };
+const state = { employees: [], users: [], attendance: [], holidays: [], mutationError: null };
 function reset() {
   state.employees = [
-    { employee_id: 1, employee_number: 1, display_name: 'Empleado 1', required_minutes: 7200, is_active: true },
-    { employee_id: 2, employee_number: 2, display_name: 'Empleado 2', required_minutes: 9600, is_active: true },
-    { employee_id: 3, employee_number: 3, display_name: 'Empleado 3', required_minutes: 8640, is_active: false }
+    { employee_id: 1, employee_number: 1, display_name: 'Empleado 1', required_minutes: 7200, requirement_mode: 'monthly', work_days_mask: 0, daily_required_minutes: 0, is_active: true },
+    { employee_id: 2, employee_number: 2, display_name: 'Empleado 2', required_minutes: 9600, requirement_mode: 'weekly', work_days_mask: 31, daily_required_minutes: 480, is_active: true },
+    { employee_id: 3, employee_number: 3, display_name: 'Empleado 3', required_minutes: 8640, requirement_mode: 'monthly', work_days_mask: 0, daily_required_minutes: 0, is_active: false }
   ];
   state.users = [{ user_id: 1, username: 'Cuenta existente', employee_id: 3, is_admin: false, is_active: true }];
   state.mutationError = null;
+  state.attendance = [];
+  state.holidays = [];
 }
 
 async function query(text, params = {}) {
@@ -23,12 +25,14 @@ async function query(text, params = {}) {
     }
     state.employees.push({ employee_id: Math.max(0, ...state.employees.map(e => e.employee_id)) + 1,
       employee_number: params.employeeNumber, display_name: params.displayName,
-      required_minutes: params.requiredMinutes, is_active: Boolean(params.isActive) });
+      required_minutes: params.requiredMinutes, requirement_mode: params.requirementMode, work_days_mask: params.workDaysMask,
+      daily_required_minutes: params.dailyRequiredMinutes, is_active: Boolean(params.isActive) });
     return [];
   }
   if (sql.startsWith('UPDATE employees')) {
     const employee = state.employees.find(e => e.employee_id === params.employeeId);
-    Object.assign(employee, { display_name: params.displayName, required_minutes: params.requiredMinutes, is_active: Boolean(params.isActive) });
+    Object.assign(employee, { display_name: params.displayName, required_minutes: params.requiredMinutes, requirement_mode: params.requirementMode,
+      work_days_mask: params.workDaysMask, daily_required_minutes: params.dailyRequiredMinutes, is_active: Boolean(params.isActive) });
     return [];
   }
   if (sql.startsWith('INSERT INTO users')) {
@@ -44,6 +48,8 @@ async function query(text, params = {}) {
   }
   if (sql.startsWith('SELECT employee_id FROM users')) return state.users.filter(u => u.user_id === params.userId);
   if (sql.startsWith('SELECT u.user_id')) return state.users.map(u => ({ ...u, display_name: state.employees.find(e => e.employee_id === u.employee_id)?.display_name }));
+  if (sql.includes('FROM attendance_days')) return state.attendance.filter(row => row.employee_id === params.employeeId && row.work_date >= params.start && row.work_date <= params.end);
+  if (sql.includes('FROM holidays')) return state.holidays.filter(row => row.holiday_date >= params.start && row.holiday_date <= params.end);
   if (sql.includes('FROM employees')) {
     let employees = state.employees;
     if (sql.includes('WHERE employee_id = @employeeId')) employees = employees.filter(e => e.employee_id === params.employeeId);
@@ -57,6 +63,9 @@ require.cache[require.resolve('../../src/db')] = { id: require.resolve('../../sr
 const employeeRoutes = require('../../src/routes/employeeRoutes');
 const adminRoutes = require('../../src/routes/adminRoutes');
 const importRoutes = require('../../src/routes/importRoutes');
+const attendanceRoutes = require('../../src/routes/attendanceRoutes');
+const reportRoutes = require('../../src/routes/reportRoutes');
+const apiRoutes = require('../../src/routes/apiRoutes');
 
 function createApp(defaultRole = null) {
   const app = express();
@@ -69,11 +78,15 @@ function createApp(defaultRole = null) {
     const role = req.get('x-test-role') || defaultRole;
     req.session.user = role ? { id: 99, username: 'Administrador de prueba', isAdmin: role === 'admin' } : null;
     res.locals.user = req.session.user;
+    res.locals.formatDate = value => value;
     next();
   });
   app.use(employeeRoutes);
   app.use(adminRoutes);
   app.use(importRoutes);
+  app.use(attendanceRoutes);
+  app.use(reportRoutes);
+  app.use(apiRoutes);
   app.use((error, req, res, next) => res.status(500).send(error.message));
   return app;
 }
